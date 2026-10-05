@@ -39,6 +39,7 @@ if (!values.prompt) {
   process.exit(1);
 }
 
+mkdirSync(values.out!, { recursive: true });
 const lex = lexicon();
 const snapshot: LearnerSnapshot = values.profile
   ? JSON.parse(readFileSync(values.profile, "utf8"))

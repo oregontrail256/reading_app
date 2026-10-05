@@ -49,11 +49,14 @@ export async function fetchWithRetry(url: string, init: RequestInit, tries = 3):
       const res = await fetch(url, { ...init, signal: AbortSignal.timeout(240_000) });
       if (res.ok) return res;
       const text = await res.text();
+      // Out of credits / quota is not transient: fail at once with a clear message.
+      if (res.status === 429 && /insufficient_quota|credit_balance_exhausted/.test(text))
+        throw new Error(`OpenAI account has no API credits. Add credits at https://platform.openai.com/settings/organization/billing/ and retry.`);
       if (res.status < 500 && res.status !== 429) throw new Error(`HTTP ${res.status}: ${text.slice(0, 500)}`);
       lastErr = new Error(`HTTP ${res.status}: ${text.slice(0, 300)}`);
     } catch (e) {
       lastErr = e;
-      if (e instanceof Error && /HTTP 4\d\d/.test(e.message) && !e.message.includes("429")) throw e;
+      if (e instanceof Error && (/HTTP 4\d\d/.test(e.message) && !e.message.includes("429") || e.message.includes("no API credits"))) throw e;
     }
     await new Promise((r) => setTimeout(r, 1000 * 2 ** i));
   }
