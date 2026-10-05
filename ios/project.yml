@@ -25,6 +25,10 @@ targets:
       properties:
         CFBundleDisplayName: Reader
         UILaunchScreen: {}
+        # Always light: the reader uses fixed paper-colored backgrounds.
+        UIUserInterfaceStyle: Light
+        # Only standard HTTPS: lets TestFlight skip the export-compliance question.
+        ITSAppUsesNonExemptEncryption: false
         UISupportedInterfaceOrientations~ipad:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationPortraitUpsideDown
@@ -47,8 +51,9 @@ targets:
         CURRENT_PROJECT_VERSION: "1"
         SWIFT_VERSION: "5.9"
         ENABLE_PREVIEWS: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         # Set your team here or in Xcode > Signing & Capabilities.
-        DEVELOPMENT_TEAM: ""
+        DEVELOPMENT_TEAM: JTA48F9F92
         CODE_SIGN_STYLE: Automatic
 schemes:
   Reader:

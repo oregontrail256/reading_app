@@ -103,7 +103,7 @@ test("generate: mock writer goes through a repair round and passes", async () =>
   assert.ok(logs[1].includes("can't read yet"));
 });
 
-test("generate: gives up after max repairs with a GenerationFailed", async () => {
+test("generate: never fails over vocabulary; hard words become preview stretch words", async () => {
   const stubborn: Writer = {
     name: "stubborn",
     async write() {
@@ -119,10 +119,16 @@ test("generate: gives up after max repairs with a GenerationFailed", async () =>
       };
     },
   };
-  await assert.rejects(
-    generateBook({ lex, snapshot: snap, request: { prompt: "x" }, writer: stubborn, maxRepairs: 1 }),
-    (e: unknown) => e instanceof GenerationFailed && e.report.violations.length > 0,
-  );
+  const book = await generateBook({ lex, snapshot: snap, request: { prompt: "x" }, writer: stubborn, maxRepairs: 1 });
+  assert.ok(book.validation.pass);
+  assert.ok(book.previewWords.includes("rain"), `preview: ${book.previewWords}`);
+  assert.ok(book.pages[0].tokens.find((t) => t.w === "rain")?.k === "story");
+  assert.ok((book.validation.warnings ?? []).length > 0, "shape shortfalls are kept as warnings");
+});
+
+test("generate: an empty draft still fails", async () => {
+  const empty: Writer = { name: "empty", async write() { return { title: "", characters: [], previewWords: [], pages: [], coverScene: "", summary: "", chatQuestions: [], nextOptions: [] }; } };
+  await assert.rejects(generateBook({ lex, snapshot: snap, request: { prompt: "x" }, writer: empty, maxRepairs: 0 }), (e: unknown) => e instanceof GenerationFailed);
 });
 
 test("validator: grammar-ish checks and theme-word budget ignores names", () => {
@@ -130,17 +136,17 @@ test("validator: grammar-ish checks and theme-word budget ignores names", () => 
   const draft: DraftBook = {
     title: "Zork",
     characters: [{ name: "Zork", description: "a robot" }],
-    previewWords: ["Zork", "bakery", "dinosaur", "octopus", "jungle"],
+    previewWords: ["Zork", "bakery", "dinosaur", "octopus", "jungle", "spider", "rocket"],
     pages: [
       { text: "zork had a bakery. the dinosaur sat.", scene: "" },
-      { text: "An octopus came to the jungle.", scene: "" },
+      { text: "An octopus came to the jungle. A spider had a rocket.", scene: "" },
     ],
     coverScene: "", summary: "", chatQuestions: [], nextOptions: [],
   };
   const r = validate(draft, spec, snap, lex);
   assert.ok(r.problems.some((p) => p.includes('write the name "Zork" with a capital')));
   assert.ok(r.problems.some((p) => p.includes("must start with a capital")));
-  assert.ok(r.problems.some((p) => p.includes("4 preview theme words") && !p.includes("zork")));
+  assert.ok(r.problems.some((p) => p.includes("6 preview theme words") && !p.includes("zork")));
 });
 
 test("generate: editor review feeds the repair loop", async () => {

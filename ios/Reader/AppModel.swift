@@ -48,6 +48,18 @@ final class AppModel {
         }
         storageWarning = storeError
         settings = store.loadSettings()
+        // Server address + token baked in at build time (Reader/Resources/server.json, git-ignored),
+        // so nobody has to type a long token on the iPad. Only fills in settings that are still unset.
+        if let url = Bundle.main.url(forResource: "server", withExtension: "json"),
+           let data = try? Data(contentsOf: url),
+           let cfg = try? JSONDecoder().decode([String: String].self, from: data) {
+            var s = settings
+            if let u = cfg["url"]?.trimmingCharacters(in: .whitespacesAndNewlines), !u.isEmpty,
+               s.proxyURL.isEmpty || s.proxyURL.contains("localhost") { s.proxyURL = u }
+            if let t = cfg["token"]?.trimmingCharacters(in: .whitespacesAndNewlines), !t.isEmpty, s.appToken.isEmpty { s.appToken = t }
+            settings = s
+            try? store.saveSettings(s)
+        }
         learner = store.loadLearner() ?? LearnerState()
         books = store.loadBooks()
         series = store.loadSeries()

@@ -6,3 +6,4 @@ ios/Reader.xcodeproj/
 .DS_Store
 xcuserdata/
 ios/Reader/Info.plist
+ios/Reader/Resources/server.json

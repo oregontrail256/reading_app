@@ -61,11 +61,12 @@ public struct ProxyClient: Sendable {
     }
 
     private func request(_ path: String, method: String = "GET", body: Data? = nil, timeout: TimeInterval = 30) throws -> URLRequest {
-        guard let url = URL(string: baseURL.trimmingCharacters(in: .whitespaces))?.appendingPathComponent(path) else { throw ProxyError.badURL }
+        guard let url = URL(string: baseURL.trimmingCharacters(in: .whitespacesAndNewlines))?.appendingPathComponent(path) else { throw ProxyError.badURL }
         var req = URLRequest(url: url, timeoutInterval: timeout)
         req.httpMethod = method
         if body != nil { req.setValue("application/json", forHTTPHeaderField: "content-type") }
-        if !token.isEmpty { req.setValue("Bearer \(token)", forHTTPHeaderField: "authorization") }
+        let tok = token.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !tok.isEmpty { req.setValue("Bearer \(tok)", forHTTPHeaderField: "authorization") }
         req.httpBody = body
         return req
     }
@@ -111,7 +112,7 @@ public struct ProxyClient: Sendable {
     }
 
     public func health() async -> Bool {
-        guard let url = URL(string: baseURL)?.appendingPathComponent("health") else { return false }
+        guard let url = URL(string: baseURL.trimmingCharacters(in: .whitespacesAndNewlines))?.appendingPathComponent("health") else { return false }
         guard let result = try? await URLSession.shared.data(from: url) else { return false }
         return (result.1 as? HTTPURLResponse)?.statusCode == 200
     }

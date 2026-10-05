@@ -67,20 +67,22 @@ export async function generateBook(o: GenerateOptions): Promise<Book> {
 
   let { draft, report } = best!;
   if (!report.pass) {
-    // Last resort: a few leftover hard words become pre-taught preview words, if the budget allows.
-    const onlyWordProblems = report.problems.every((p) => /can't read yet|preview theme words/.test(p));
-    const names = nameSet(spec, draft);
-    const room = spec.thresholds.maxStoryWords - report.storyWordsUsed.filter((w) => !names.has(w)).length;
-    if (onlyWordProblems && report.violations.length <= room) {
-      draft = { ...draft, previewWords: [...draft.previewWords, ...report.violations.map((v) => v.word)] };
+    // Never fail a book over vocabulary. Any words he can't decode yet become "stretch words":
+    // pre-taught on the preview page (read to him first) and not counted against him while reading.
+    if (report.violations.length) {
+      const extra = report.violations.map((v) => v.word.replace(/'s$/, "")).filter((w) => !draft.previewWords.map((x) => x.toLowerCase()).includes(w));
+      draft = { ...draft, previewWords: [...draft.previewWords, ...extra] };
+      const before = report.problems.filter((p) => p.startsWith("editor:"));
       report = validate(draft, spec, snap, lex);
-      log(`promoted ${report.storyWordsUsed.length} preview words -> ${report.pass ? "PASS" : "still failing"}`);
+      report.problems.push(...before);
+      log(`stretch words added to preview: ${extra.join(", ")}`);
     }
-  }
-  if (!report.pass && report.problems.every((p) => p.startsWith("editor:"))) {
-    // Words and shape pass; only editorial nits remain after all rounds. Ship it, keep the notes.
-    log(`accepting with editor notes: ${report.problems.join("; ")}`);
-    report = { ...report, pass: true };
+    // Whatever is left (too many preview words, length, practice-word mix, editor notes) is a quality
+    // shortfall, not a reason to give him nothing. Ship the best draft and keep the notes.
+    if (!report.pass && draft.pages.some((p) => p.text.trim())) {
+      log(`accepting best draft with notes: ${report.problems.join("; ")}`);
+      report = { ...report, pass: true, warnings: report.problems, problems: [] };
+    }
   }
   if (!report.pass) throw new GenerationFailed(`book failed validation: ${report.problems.join("; ")}`, report, draft);
 

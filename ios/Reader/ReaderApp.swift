@@ -11,6 +11,7 @@ struct ReaderApp: App {
         WindowGroup {
             RootView()
                 .environment(model)
+                .preferredColorScheme(.light)
                 .task { await model.loadLexicon() }
                 .onChange(of: scenePhase) { _, phase in
                     if phase == .active { model.resumePending() }

@@ -102,6 +102,8 @@ export interface ValidationReport {
   storyWordsUsed: string[];
   violations: Violation[];
   problems: string[];
+  /** Rules the shipped book still misses (set when the best draft is accepted after all repair rounds). */
+  warnings?: string[];
 }
 
 export interface Book {
