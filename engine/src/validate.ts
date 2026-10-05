@@ -137,6 +137,7 @@ export function validate(draft: DraftBook, spec: LessonSpec, snap: LearnerSnapsh
   draft.pages.forEach((p, i) => {
     const ss = sentences(p.text);
     if (ss.length > th.maxSentencesPerPage) problems.push(`page ${i + 1} has ${ss.length} sentences; max ${th.maxSentencesPerPage}`);
+    if (ss.length < th.minSentencesPerPage) problems.push(`page ${i + 1} has ${ss.length} sentence(s); write at least ${th.minSentencesPerPage}`);
     for (const s of ss)
       if (s.words > th.maxSentenceWords) problems.push(`page ${i + 1}: "${s.text}" has ${s.words} words; max ${th.maxSentenceWords}`);
     if (hasDigits(p.text)) problems.push(`page ${i + 1} uses digits; write numbers as words`);

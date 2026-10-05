@@ -51,7 +51,7 @@ export async function generateBook(o: GenerateOptions): Promise<Book> {
     const draft = sanitize(await writer.write(messages));
     const report = validate(draft, spec, snap, lex);
     // Editorial review only once the words pass (and only if there are rounds left to fix things).
-    if (report.pass && writer.review && !o.skipReview && round < maxRepairs) {
+    if (report.pass && writer.review && !o.skipReview) {
       const rv = await writer.review(draft, req.prompt).catch((e) => (log(`review failed: ${e.message}`), { ok: true, issues: [] }));
       if (!rv.ok && rv.issues.length) {
         report.pass = false;

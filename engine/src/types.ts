@@ -48,6 +48,7 @@ export interface Thresholds {
   /** Max distinct pre-taught story words (names, theme words). */
   maxStoryWords: number;
   maxSentenceWords: number;
+  minSentencesPerPage: number;
   maxSentencesPerPage: number;
 }
 

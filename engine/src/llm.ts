@@ -22,7 +22,7 @@ export class OpenAIWriter implements Writer {
   readonly name: string;
   constructor(
     private apiKey = process.env.OPENAI_API_KEY ?? "",
-    model = process.env.OPENAI_MODEL ?? "gpt-5-mini",
+    model = process.env.OPENAI_MODEL ?? "gpt-5",
     private baseURL = process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1",
     private reasoningEffort = process.env.OPENAI_REASONING_EFFORT ?? "low",
   ) {
@@ -106,7 +106,8 @@ export class MockWriter implements Writer {
       const sentence1 = ["Max", pick(), practice[i % Math.max(1, practice.length)] ?? pick(), pick()].join(" ");
       const extra = i < 3 && heart.length ? heart[0] : pick();
       const sentence2 = [extra, pick(), pick(), pick(), pick()].join(" ");
-      pages.push({ text: `${cap(sentence1)}. ${cap(sentence2)}.`, scene: `Max the shark, page ${i + 1}.` });
+      const sentence3 = [pick(), pick(), pick(), pick(), pick()].join(" ");
+      pages.push({ text: `${cap(sentence1)}. ${cap(sentence2)}. ${cap(sentence3)}.`, scene: `Max the shark, page ${i + 1}.` });
     }
     if (this.calls === 1) pages[0].text += " The enormous dinosaurs giggled.";
     if (this.calls > 1) {

@@ -36,9 +36,9 @@ export function renderPrintable(book: Book, lex: Lexicon): string {
 body { font-family: Andika, "Comic Sans MS", sans-serif; margin: 0; color: #222; }
 .cover, .page { page-break-after: always; height: 7.3in; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.25in; position: relative; }
 .cover h1 { font-size: 54pt; margin: 0; text-align: center; }
-img { max-height: 4.6in; max-width: 100%; border-radius: 12px; }
+img { max-height: 3.9in; max-width: 100%; border-radius: 12px; }
 .noimg { height: 3.5in; width: 6in; border: 2px dashed #ccc; border-radius: 12px; }
-.text { font-size: 34pt; line-height: 1.5; text-align: center; margin: 0 0.5in; word-spacing: 0.15em; }
+.text { font-size: 26pt; line-height: 1.45; text-align: center; margin: 0 0.5in; word-spacing: 0.15em; }
 .num { position: absolute; bottom: 0; right: 0; color: #999; font-size: 14pt; }
 .parent { font-family: -apple-system, Helvetica, Arial, sans-serif; font-size: 11pt; padding: 0.2in; }
 .parent h2 { margin: 0 0 6px; } .parent h3 { margin: 18px 0 6px; }

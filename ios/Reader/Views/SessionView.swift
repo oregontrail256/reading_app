@@ -166,7 +166,7 @@ struct SessionView: View {
             if let url = model.pageImage(book, page: i), let img = UIImage(contentsOfFile: url.path) {
                 Image(uiImage: img).resizable().scaledToFit()
                     .clipShape(RoundedRectangle(cornerRadius: 24))
-                    .frame(maxHeight: 420)
+                    .frame(maxHeight: 360)
             }
             PageText(tokens: page.tokens, mode: mode, marks: Binding(
                 get: { marks[i] ?? [:] },
@@ -284,7 +284,7 @@ struct WordView: View {
             }
             if !unit.suffix.isEmpty { Text(unit.suffix) }
         }
-        .font(Theme.reading(46))
+        .font(Theme.reading(40))
         .padding(.horizontal, 6)
         .padding(.vertical, 2)
         .background(background, in: RoundedRectangle(cornerRadius: 10))

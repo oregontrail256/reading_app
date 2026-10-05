@@ -8,7 +8,8 @@ export const DEFAULT_THRESHOLDS: Thresholds = {
   minTargetTokens: 6,
   maxStoryWords: 3,
   maxSentenceWords: 10,
-  maxSentencesPerPage: 3,
+  minSentencesPerPage: 3,
+  maxSentencesPerPage: 4,
 };
 
 /** Patterns never chosen as a book's teaching target. */
@@ -117,7 +118,7 @@ export function buildSpec(
     allowedWords,
     storyWords,
     pages,
-    wordBudget: [pages * 6, pages * 16],
+    wordBudget: [pages * 14, pages * 26],
     thresholds,
   };
 }

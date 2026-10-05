@@ -24,7 +24,7 @@ const token = process.env.APP_TOKEN;
 
 export const app = new Hono();
 
-app.get("/health", (c) => c.json({ ok: true, mock, words: lex.words.size, model: mock ? "mock" : process.env.OPENAI_MODEL ?? "gpt-5-mini" }));
+app.get("/health", (c) => c.json({ ok: true, mock, words: lex.words.size, model: mock ? "mock" : process.env.OPENAI_MODEL ?? "gpt-5" }));
 
 app.use("/v1/*", async (c, next) => {
   if (token && c.req.header("authorization") !== `Bearer ${token}`) return c.json({ error: "unauthorized" }, 401);
@@ -63,5 +63,5 @@ app.post("/v1/books", async (c) => {
 if (process.argv[1]?.endsWith("server.ts")) {
   const port = Number(process.env.PORT ?? 8787);
   serve({ fetch: app.fetch, port, hostname: "0.0.0.0" });
-  console.log(`reader proxy on :${port} (${mock ? "MOCK writer" : `OpenAI ${process.env.OPENAI_MODEL ?? "gpt-5-mini"}`})${token ? "" : " — WARNING: APP_TOKEN not set, no auth"}`);
+  console.log(`reader proxy on :${port} (${mock ? "MOCK writer" : `OpenAI ${process.env.OPENAI_MODEL ?? "gpt-5"}`})${token ? "" : " — WARNING: APP_TOKEN not set, no auth"}`);
 }

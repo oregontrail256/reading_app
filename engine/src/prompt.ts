@@ -14,7 +14,7 @@ Word rules (a computer checks every word, and a story that breaks them is reject
 - No digits (write "two", not "2"). No contractions unless the contraction itself is in a list. Avoid hyphenated words.
 
 Shape rules:
-- Exactly {pages} pages. Each page has 1 to {maxSent} short sentences of at most {maxWords} words each.
+- Exactly {pages} pages. Each page has {minSent} to {maxSent} short sentences (at least {minSent} on EVERY page, so he gets real reading on each page), each at most {maxWords} words.
 - {minWords} to {maxWords2} words in total, counting the title.
 - The title follows the same word rules.
 
@@ -41,6 +41,7 @@ export function systemPrompt(spec: LessonSpec): string {
     .replace("{targetMin}", String(tMin))
     .replace("{targetMax}", String(tMax))
     .replace("{pages}", String(spec.pages))
+    .replace(/\{minSent\}/g, String(t.minSentencesPerPage))
     .replace("{maxSent}", String(t.maxSentencesPerPage))
     .replace("{maxWords}", String(t.maxSentenceWords))
     .replace("{minWords}", String(spec.wordBudget[0]))
