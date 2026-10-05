@@ -2,13 +2,18 @@ import Foundation
 import Observation
 import ReaderCore
 
-struct PendingBook: Identifiable, Equatable {
-    enum Status: Equatable { case writing, failed(String) }
-    let id = UUID()
+/// A book being written on the server. Persisted, so writing continues across app restarts.
+struct PendingBook: Identifiable, Equatable, Codable {
+    enum Status: Equatable, Codable { case writing, failed(String) }
+    var id = UUID()
     var label: String
     var request: BookRequest
     var seriesId: String?
     var status: Status = .writing
+    /// Server job id, once submitted.
+    var jobId: String?
+    var submittedAt: Date?
+    var resubmits: Int?
 }
 
 @MainActor
@@ -21,7 +26,11 @@ final class AppModel {
     }
     private(set) var books: [Book] = []
     private(set) var series: [Series] = []
-    var pending: [PendingBook] = []
+    var pending: [PendingBook] = [] {
+        didSet { try? store.save(pending, "pending.json") }
+    }
+    /// Pending ids with a polling loop running right now.
+    @ObservationIgnored private var polling: Set<UUID> = []
     var loadError: String?
     /// Non-fatal: storage fell back to a temp folder, so data won't persist.
     var storageWarning: String?
@@ -42,6 +51,7 @@ final class AppModel {
         learner = store.loadLearner() ?? LearnerState()
         books = store.loadBooks()
         series = store.loadSeries()
+        pending = store.load([PendingBook].self, "pending.json") ?? []
     }
 
     var needsPlacement: Bool { learner.placedThrough == nil }
@@ -138,32 +148,100 @@ final class AppModel {
         enqueue(PendingBook(label: job.label, request: job.request, seriesId: job.seriesId))
     }
 
+    /// Call on launch and whenever the app comes back to the foreground: picks up books still being written.
+    func resumePending() {
+        for job in pending where job.status == .writing && !polling.contains(job.id) {
+            if job.jobId != nil { track(job.id) } else { submit(job.id) }
+        }
+    }
+
     func dismiss(_ job: PendingBook) {
         pending.removeAll { $0.id == job.id }
     }
 
     private func enqueue(_ job: PendingBook) {
         pending.append(job)
+        submit(job.id)
+    }
+
+    private var client: ProxyClient { ProxyClient(baseURL: settings.proxyURL, token: settings.appToken) }
+
+    private func fail(_ id: UUID, _ message: String) {
+        if let i = pending.firstIndex(where: { $0.id == id }) { pending[i].status = .failed(message) }
+    }
+
+    /// Send the request to the server, then start polling.
+    private func submit(_ id: UUID) {
+        guard let job = pending.first(where: { $0.id == id }) else { return }
         var req = job.request
         req.pages = settings.pages
         let avoid = settings.avoidTopics.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
         req.avoid = avoid.isEmpty ? nil : avoid
-        let client = ProxyClient(baseURL: settings.proxyURL, token: settings.appToken)
+        let client = self.client
         let snapshot = learner.snapshot()
         let images = settings.images
         let quality = settings.imageQuality
-        let jobId = job.id
-
+        polling.insert(id)
         Task { [req] in
             do {
-                var book = try await client.generate(snapshot: snapshot, request: req, images: images, quality: quality)
-                book.seriesId = attachToSeries(book, seriesId: job.seriesId)
-                try store.save(book: book)
-                books = store.loadBooks()
-                pending.removeAll { $0.id == jobId }
+                let jobId = try await client.submit(snapshot: snapshot, request: req, images: images, quality: quality)
+                if let i = pending.firstIndex(where: { $0.id == id }) {
+                    pending[i].jobId = jobId
+                    pending[i].submittedAt = Date()
+                }
+                polling.remove(id)
+                track(id)
             } catch {
-                if let i = pending.firstIndex(where: { $0.id == jobId }) {
-                    pending[i].status = .failed(error.localizedDescription)
+                polling.remove(id)
+                fail(id, error.localizedDescription)
+            }
+        }
+    }
+
+    /// Poll the server every few seconds until the book is done or failed. Network blips are retried;
+    /// if the app is suspended the loop pauses and `resumePending()` restarts it on return.
+    private func track(_ id: UUID) {
+        guard let jobId = pending.first(where: { $0.id == id })?.jobId, !polling.contains(id) else { return }
+        polling.insert(id)
+        let client = self.client
+        Task {
+            defer { polling.remove(id) }
+            var networkErrors = 0
+            while pending.contains(where: { $0.id == id && $0.status == .writing }) {
+                do {
+                    switch try await client.poll(jobId: jobId) {
+                    case .running:
+                        networkErrors = 0
+                        try? await Task.sleep(for: .seconds(5))
+                    case let .done(fresh):
+                        guard let job = pending.first(where: { $0.id == id }) else { return }
+                        var book = fresh
+                        book.seriesId = attachToSeries(book, seriesId: job.seriesId)
+                        try store.save(book: book)
+                        books = store.loadBooks()
+                        pending.removeAll { $0.id == id }
+                        return
+                    }
+                } catch let e as ProxyError {
+                    if case .jobLost = e, let i = pending.firstIndex(where: { $0.id == id }), (pending[i].resubmits ?? 0) < 1 {
+                        // Server slept or restarted (free hosting does this): start the book again, once.
+                        pending[i].resubmits = (pending[i].resubmits ?? 0) + 1
+                        pending[i].jobId = nil
+                        Task { submit(id) }  // runs after this loop's `defer` clears the polling flag
+                        return
+                    }
+                    if case .http(let code, _) = e, code >= 500 || code == 0, networkErrors < 30 {
+                        networkErrors += 1
+                        try? await Task.sleep(for: .seconds(10))
+                        continue
+                    }
+                    fail(id, e.localizedDescription)
+                    return
+                } catch {
+                    // Offline, timed out, or suspended mid-request: keep trying for a while.
+                    networkErrors += 1
+                    if networkErrors > 30 { fail(id, "Couldn't reach the book server. Try again later."); return }
+                    try? await Task.sleep(for: .seconds(10))
                 }
             }
         }

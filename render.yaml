@@ -1,0 +1,21 @@
+# Render Blueprint: deploys the book server (engine/src/server.ts).
+# In Render: New + -> Blueprint -> pick this repo. You'll be asked for OPENAI_API_KEY; APP_TOKEN is generated.
+services:
+  - type: web
+    name: reader-books
+    runtime: node
+    plan: free            # spins down after ~15 min idle (first request then takes ~1 min). "starter" ($7/mo) stays up.
+    region: oregon
+    buildCommand: cd engine && npm ci --include=dev
+    startCommand: cd engine && npm run serve
+    healthCheckPath: /health
+    autoDeploy: true      # every push to main redeploys
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: OPENAI_API_KEY
+        sync: false       # you paste it in the Render dashboard; never committed
+      - key: APP_TOKEN
+        generateValue: true
+      - key: OPENAI_MODEL
+        value: gpt-5

@@ -180,3 +180,23 @@ test("server: auth and mock generation", async () => {
   const book = (await res.json()) as any;
   assert.equal(book.pages.length, 10);
 });
+
+test("server: async job submit and poll", async () => {
+  process.env.MOCK = "1";
+  process.env.APP_TOKEN = "t0ken";
+  const { app } = await import("../src/server.ts");
+  const h = { authorization: "Bearer t0ken", "content-type": "application/json" };
+  const sub = await app.request("/v1/jobs", { method: "POST", headers: h, body: JSON.stringify({ snapshot: snap, request: { prompt: "ninjas in the bathroom" } }) });
+  assert.equal(sub.status, 202);
+  const { id } = (await sub.json()) as any;
+  let job: any;
+  for (let i = 0; i < 50; i++) {
+    job = await (await app.request(`/v1/jobs/${id}`, { headers: h })).json();
+    if (job.status !== "running") break;
+    await new Promise((r) => setTimeout(r, 20));
+  }
+  assert.equal(job.status, "done");
+  assert.equal(job.book.pages.length, 10);
+  assert.equal((await app.request(`/v1/jobs/nope`, { headers: h })).status, 404);
+  assert.equal((await app.request(`/v1/jobs/${id}`)).status, 401);
+});

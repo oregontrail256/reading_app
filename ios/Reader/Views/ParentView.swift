@@ -99,7 +99,7 @@ struct ParentView: View {
                         Spacer()
                         if let health { Image(systemName: health ? "checkmark.circle.fill" : "xmark.octagon.fill").foregroundStyle(health ? .green : .red) }
                     }
-                } header: { Text("Book server") } footer: { Text("Run `npm run serve` in engine/ (see README).") }
+                } header: { Text("Book server") } footer: { Text("Your hosted book server, e.g. https://reader-books.onrender.com (see README).") }
                 Section("Data") {
                     ShareLink("Export learner data", item: model.store.root.appendingPathComponent("learner.json"))
                     ShareLink("Export reading log", item: model.store.root.appendingPathComponent("events.jsonl"))

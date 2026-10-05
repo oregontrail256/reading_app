@@ -5,3 +5,4 @@ ios/Reader.xcodeproj/
 .build/
 .DS_Store
 xcuserdata/
+ios/Reader/Info.plist

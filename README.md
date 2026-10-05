@@ -35,6 +35,23 @@ Each book is written to `engine/out/<title>.html`. It prints as one page per she
 
 `--placement <pattern id>` sets what he has mastered. It means "everything up to and including this step"; the ids are in `shared/patterns.json`. The default `suffix_ed` (step 21) matches "mid-1st grade: blends, digraphs, -ed/-ing; silent-e next."
 
+## Hosting the book server (Render)
+
+The iPad never talks to OpenAI directly. It sends a job to the book server and checks back until the book is ready, which survives slow generation and the app being closed. The server runs on [Render](https://render.com) from `render.yaml`:
+
+1. Sign in to Render with GitHub and give it access to `reading_app`.
+2. **New + → Blueprint** → pick the repo → **Apply**. When asked, paste your `OPENAI_API_KEY`. `APP_TOKEN` is generated for you.
+3. When the deploy is green, open the service:
+   - **Environment** → copy `APP_TOKEN`
+   - the page header → copy the URL, e.g. `https://reader-books.onrender.com`
+4. On the iPad, go to Grown-ups → Book server, paste the URL and token, and tap **Test connection**.
+
+Every push to `main` redeploys automatically.
+
+The **free plan** sleeps after about 15 idle minutes. The first request after that takes about a minute, and a book that finished while the app was closed can be lost when it sleeps; the app then rewrites it once, automatically. The **Starter** plan ($7/mo) stays awake. Job results live in memory, so a redeploy also drops unfinished books.
+
+You can still run the server locally with `cd engine && npm run serve`, which reads `.env`.
+
 ## M1: the iPad app
 
 **1. Run the book server** (on your Mac, or any always-on box):
