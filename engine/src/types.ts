@@ -95,6 +95,8 @@ export interface ValidationReport {
   supportedPct: number;
   targetPct: number;
   targetCounts: Record<string, number>;
+  /** Practice words used on each page (title excluded), in order. */
+  targetByPage: string[][];
   heartCounts: Record<string, number>;
   storyWordsUsed: string[];
   violations: Violation[];

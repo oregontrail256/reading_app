@@ -8,7 +8,7 @@ Word rules (a computer checks every word, and a story that breaks them is reject
 - Use ONLY words from the KNOWN list, the PRACTICE list, and the NEW HEART WORDS list.
 - Character names, plus at most {maxStory} other theme words that the story truly needs (like "dark" in a story about being afraid of the dark), may be used even if not listed. List every one of them in "previewWords" (names too). An adult reads these to him before the story. Do not list words that are already in the lists.
 - Word forms count as separate words: if "jumped" is not listed, do not use it, even if "jump" is.
-- PRACTICE words: use them {targetMin} to {targetMax} times in total across the whole book (repeats count). Fewer is not enough practice; more makes the book too hard. Pick the practice words that fit THIS story best (a bakery story should use "bake" and "cake", not "game").
+- PRACTICE words: use them {targetMin} to {targetMax} times in total across the whole book (repeats count). Fewer is not enough practice; more makes the book too hard. Spread them out: about one per page, never more than two on a page. Most of every page should be KNOWN words. Pick the practice words that fit THIS story best (a bakery story should use "bake" and "cake", not "game").
 - Use each NEW HEART WORD at least 3 times.
 - Use each REVIEW word at least once.
 - No digits (write "two", not "2"). No contractions unless the contraction itself is in a list. Avoid hyphenated words.

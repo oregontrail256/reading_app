@@ -117,7 +117,7 @@ export function buildSpec(
     allowedWords,
     storyWords,
     pages,
-    wordBudget: [pages * 8, pages * 18],
+    wordBudget: [pages * 6, pages * 16],
     thresholds,
   };
 }

@@ -79,11 +79,13 @@ export function validate(draft: DraftBook, spec: LessonSpec, snap: LearnerSnapsh
   const problems: string[] = [];
 
   const texts = [draft.title, ...draft.pages.map((p) => p.text)];
-  for (const text of texts) {
+  const targetByPage: string[][] = draft.pages.map(() => []);
+  texts.forEach((text, ti) => {
     for (const tok of tokenize(text)) {
       if (!tok.w) continue;
       const c = classifyWord(tok.w, spec, snap, lex, story);
       counts[c.cls]++;
+      if (c.cls === "target" && ti > 0) targetByPage[ti - 1].push(tok.w);
       if (c.cls === "target") for (const p of c.patterns ?? []) targetCounts[p] = (targetCounts[p] ?? 0) + 1;
       if (c.cls === "heart") heartCounts[tok.w] = (heartCounts[tok.w] ?? 0) + 1;
       if (c.cls === "story") storyUsed.add(tok.w.replace(/'s$/, ""));
@@ -93,7 +95,7 @@ export function validate(draft: DraftBook, spec: LessonSpec, snap: LearnerSnapsh
         bad.set(tok.w, v);
       }
     }
-  }
+  });
 
   const total = Object.values(counts).reduce((a, b) => a + b, 0) || 1;
   // Known, pre-taught preview words, and the new heart word (taught in the preview) are all "supported".
@@ -104,10 +106,24 @@ export function validate(draft: DraftBook, spec: LessonSpec, snap: LearnerSnapsh
   const th = spec.thresholds;
 
   if (violations.length) problems.push(`${violations.length} word(s) he can't read yet`);
-  if (supportedPct < th.minSupportedPct)
+  if (supportedPct < th.minSupportedPct && targetPct <= th.maxTargetPct)
     problems.push(`only ${(supportedPct * 100).toFixed(0)}% of words are known or pre-taught; need at least ${(th.minSupportedPct * 100).toFixed(0)}% (use fewer practice words)`);
   if (targetPct > th.maxTargetPct)
-    problems.push(`${counts.target} practice-word uses is too many for ${total} words; use at most ${Math.floor(total * th.maxTargetPct)} (replace some with known words)`);
+  {
+    const cap = Math.floor(total * th.maxTargetPct);
+    const cut = counts.target - cap;
+    // Name concrete places to cut: the pages with the most practice words first.
+    const where = targetByPage
+      .map((ws, i) => ({ i, ws }))
+      .filter((x) => x.ws.length > 1)
+      .sort((a, b) => b.ws.length - a.ws.length)
+      .map((x) => `page ${x.i + 1} (${x.ws.join(", ")})`)
+      .slice(0, 4);
+    problems.push(
+      `${counts.target} practice-word uses; the most allowed for ${total} words is ${cap}. Swap ${cut} practice word(s) for known words` +
+        (where.length ? `, e.g. on ${where.join("; ")}` : "") + ", or add more sentences made only of known words",
+    );
+  }
   for (const t of spec.targets) {
     if ((targetCounts[t] ?? 0) < th.minTargetTokens)
       problems.push(`practice pattern "${lex.patternById.get(t)?.name ?? t}" appears ${targetCounts[t] ?? 0} times; use it at least ${th.minTargetTokens} times`);
@@ -141,6 +157,7 @@ export function validate(draft: DraftBook, spec: LessonSpec, snap: LearnerSnapsh
     supportedPct,
     targetPct,
     targetCounts,
+    targetByPage,
     heartCounts,
     storyWordsUsed: [...storyUsed],
     violations,
