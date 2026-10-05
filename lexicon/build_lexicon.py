@@ -136,6 +136,7 @@ with open(HERE / "blocklist.txt") as f:
 CMU = cmudict.dict()
 
 
+KID = set()  # children's-book vocabulary (kid_words.txt)
 CORE = set()  # filled in main(): words eligible as morphological bases
 
 
@@ -342,6 +343,7 @@ def main():
         words.append(w)
 
     kid_text = "\n".join(l for l in open(HERE / "kid_words.txt") if not l.startswith("#"))
+    KID.update(kid_text.split())
     for w in kid_text.split():
         if not re.fullmatch(r"[a-z]+", w):
             continue
@@ -372,6 +374,8 @@ def main():
         rank += 1
         info["r"] = rank
         info["z"] = round(zipf_frequency(w, "en"), 2)
+        if w in KID:
+            info["k"] = 1
         out[w] = info
 
     OUT.mkdir(exist_ok=True)

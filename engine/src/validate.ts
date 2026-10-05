@@ -24,13 +24,19 @@ export function classifyWord(
   lex: Lexicon,
   story: Set<string>,
 ): Classified {
-  if (story.has(word)) return { cls: "story" };
   // possessive: Max's -> Max
   if (word.endsWith("'s")) {
     const base = word.slice(0, -2);
     const c = classifyWord(base, spec, snap, lex, story);
     if (c.cls !== "unknown") return c;
   }
+  const lexical = classifyLexical(word, spec, snap, lex);
+  // A preview word only counts as pre-taught if he couldn't read it anyway.
+  if (lexical.cls === "unknown" && story.has(word)) return { cls: "story" };
+  return lexical;
+}
+
+function classifyLexical(word: string, spec: LessonSpec, snap: LearnerSnapshot, lex: Lexicon): Classified {
   const e = lex.get(word);
   if (!e) return { cls: "unknown", reason: "not in the dictionary (if it is a name, list it in previewWords)" };
   if (wordKnown(snap, word, e)) return { cls: "known" };
@@ -48,6 +54,13 @@ export function annotate(tokens: Token[], spec: LessonSpec, snap: LearnerSnapsho
   return tokens;
 }
 
+/** Lowercased character-name parts (names don't count toward the theme-word budget). */
+export function nameSet(spec: LessonSpec, draft: DraftBook): Set<string> {
+  const s = new Set(spec.storyWords.map((w) => w.toLowerCase()));
+  for (const c of draft.characters ?? []) for (const part of c.name.split(/\s+/)) s.add(part.toLowerCase());
+  return s;
+}
+
 export function storySet(spec: LessonSpec, draft: DraftBook): Set<string> {
   const s = new Set(spec.storyWords.map((w) => w.toLowerCase()));
   for (const c of draft.characters ?? []) for (const part of c.name.split(/\s+/)) s.add(part.toLowerCase());
@@ -57,6 +70,7 @@ export function storySet(spec: LessonSpec, draft: DraftBook): Set<string> {
 
 export function validate(draft: DraftBook, spec: LessonSpec, snap: LearnerSnapshot, lex: Lexicon): ValidationReport {
   const story = storySet(spec, draft);
+  const names = nameSet(spec, draft);
   const counts: Record<TokenClass, number> = { known: 0, target: 0, heart: 0, story: 0, unknown: 0 };
   const targetCounts: Record<string, number> = Object.fromEntries(spec.targets.map((t) => [t, 0]));
   const heartCounts: Record<string, number> = Object.fromEntries(spec.newHeartWords.map((w) => [w, 0]));
@@ -91,13 +105,14 @@ export function validate(draft: DraftBook, spec: LessonSpec, snap: LearnerSnapsh
   if (supportedPct < th.minSupportedPct)
     problems.push(`only ${(supportedPct * 100).toFixed(0)}% of words are known words; need at least ${(th.minSupportedPct * 100).toFixed(0)}%`);
   if (targetPct > th.maxTargetPct)
-    problems.push(`${(targetPct * 100).toFixed(0)}% of words are practice words; keep it under ${(th.maxTargetPct * 100).toFixed(0)}%`);
+    problems.push(`${counts.target} practice-word uses is too many for ${total} words; use at most ${Math.floor(total * th.maxTargetPct)} (replace some with known words)`);
   for (const t of spec.targets) {
     if ((targetCounts[t] ?? 0) < th.minTargetTokens)
       problems.push(`practice pattern "${lex.patternById.get(t)?.name ?? t}" appears ${targetCounts[t] ?? 0} times; use it at least ${th.minTargetTokens} times`);
   }
-  if (storyUsed.size > th.maxStoryWords)
-    problems.push(`${storyUsed.size} preview/story words (${[...storyUsed].join(", ")}); allow at most ${th.maxStoryWords}`);
+  const themeUsed = [...storyUsed].filter((w) => !names.has(w));
+  if (themeUsed.length > th.maxStoryWords)
+    problems.push(`${themeUsed.length} preview theme words (${themeUsed.join(", ")}); allow at most ${th.maxStoryWords} besides character names`);
   if (draft.pages.length !== spec.pages) problems.push(`has ${draft.pages.length} pages; need exactly ${spec.pages}`);
   if (total < spec.wordBudget[0] || total > spec.wordBudget[1])
     problems.push(`has ${total} words; aim for ${spec.wordBudget[0]}-${spec.wordBudget[1]}`);
@@ -107,6 +122,14 @@ export function validate(draft: DraftBook, spec: LessonSpec, snap: LearnerSnapsh
     for (const s of ss)
       if (s.words > th.maxSentenceWords) problems.push(`page ${i + 1}: "${s.text}" has ${s.words} words; max ${th.maxSentenceWords}`);
     if (hasDigits(p.text)) problems.push(`page ${i + 1} uses digits; write numbers as words`);
+    for (const s of ss) {
+      const first = s.text.replace(/^[^A-Za-z]+/, "");
+      if (first && first[0] !== first[0].toUpperCase()) problems.push(`page ${i + 1}: sentence "${s.text}" must start with a capital letter`);
+    }
+    for (const c of draft.characters ?? []) {
+      const n = c.name.split(/\s+/)[0];
+      if (n && new RegExp(`\\b${n.toLowerCase()}\\b`).test(p.text)) problems.push(`page ${i + 1}: write the name "${n}" with a capital letter`);
+    }
   });
 
   return {

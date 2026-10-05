@@ -7,7 +7,7 @@ import { repairPrompt, systemPrompt, userPrompt } from "./prompt.ts";
 import { buildSpec, type SpecOptions } from "./spec.ts";
 import { tokenize } from "./tokenize.ts";
 import type { Book, BookRequest, DraftBook, LearnerSnapshot, LessonSpec, ValidationReport } from "./types.ts";
-import { annotate, badness, storySet, validate } from "./validate.ts";
+import { annotate, badness, nameSet, storySet, validate } from "./validate.ts";
 
 export interface GenerateOptions extends SpecOptions {
   lex: Lexicon;
@@ -16,6 +16,8 @@ export interface GenerateOptions extends SpecOptions {
   writer: Writer | ((spec: LessonSpec) => Writer);
   illustrator?: Illustrator;
   maxRepairs?: number;
+  /** Skip the editorial (grammar/coherence) review pass. */
+  skipReview?: boolean;
   log?: (msg: string) => void;
 }
 
@@ -48,6 +50,14 @@ export async function generateBook(o: GenerateOptions): Promise<Book> {
     const t0 = Date.now();
     const draft = sanitize(await writer.write(messages));
     const report = validate(draft, spec, snap, lex);
+    // Editorial review only once the words pass (and only if there are rounds left to fix things).
+    if (report.pass && writer.review && !o.skipReview && round < maxRepairs) {
+      const rv = await writer.review(draft, req.prompt).catch((e) => (log(`review failed: ${e.message}`), { ok: true, issues: [] }));
+      if (!rv.ok && rv.issues.length) {
+        report.pass = false;
+        report.problems.push(...rv.issues.map((i) => `editor: ${i}`));
+      }
+    }
     log(`round ${round + 1}: ${report.pass ? "PASS" : report.problems.join("; ")} (${((Date.now() - t0) / 1000).toFixed(1)}s)`);
     if (!best || badness(report) < badness(best.report)) best = { draft, report };
     if (report.pass) break;
@@ -58,13 +68,19 @@ export async function generateBook(o: GenerateOptions): Promise<Book> {
   let { draft, report } = best!;
   if (!report.pass) {
     // Last resort: a few leftover hard words become pre-taught preview words, if the budget allows.
-    const onlyWordProblems = report.problems.every((p) => /can't read yet|preview\/story words/.test(p));
-    const room = spec.thresholds.maxStoryWords - report.storyWordsUsed.length;
+    const onlyWordProblems = report.problems.every((p) => /can't read yet|preview theme words/.test(p));
+    const names = nameSet(spec, draft);
+    const room = spec.thresholds.maxStoryWords - report.storyWordsUsed.filter((w) => !names.has(w)).length;
     if (onlyWordProblems && report.violations.length <= room) {
       draft = { ...draft, previewWords: [...draft.previewWords, ...report.violations.map((v) => v.word)] };
       report = validate(draft, spec, snap, lex);
       log(`promoted ${report.storyWordsUsed.length} preview words -> ${report.pass ? "PASS" : "still failing"}`);
     }
+  }
+  if (!report.pass && report.problems.every((p) => p.startsWith("editor:"))) {
+    // Words and shape pass; only editorial nits remain after all rounds. Ship it, keep the notes.
+    log(`accepting with editor notes: ${report.problems.join("; ")}`);
+    report = { ...report, pass: true };
   }
   if (!report.pass) throw new GenerationFailed(`book failed validation: ${report.problems.join("; ")}`, report, draft);
 

@@ -51,11 +51,13 @@ test("targets: next pattern in sequence, two when accuracy is high", () => {
 
 test("classify: known, target, story, unknown", () => {
   const spec = buildSpec(lex, snap, { prompt: "x" });
-  const story = new Set(["max"]);
+  const story = new Set(["max", "bakery", "game", "zork"]);
   assert.equal(classifyWord("fish", spec, snap, lex, story).cls, "known");
   assert.equal(classifyWord("cake", spec, snap, lex, story).cls, "target");
-  assert.equal(classifyWord("max", spec, snap, lex, story).cls, "story");
-  assert.equal(classifyWord("max's", spec, snap, lex, story).cls, "story");
+  assert.equal(classifyWord("max", spec, snap, lex, story).cls, "known", "a decodable name is just a known word");
+  assert.equal(classifyWord("game", spec, snap, lex, story).cls, "target", "listing a practice word as preview doesn't make it pre-taught");
+  assert.equal(classifyWord("bakery", spec, snap, lex, story).cls, "story");
+  assert.equal(classifyWord("zork's", spec, snap, lex, story).cls, "story");
   assert.equal(classifyWord("rain", spec, snap, lex, story).cls, "unknown");
   assert.equal(classifyWord("zxqv", spec, snap, lex, story).cls, "unknown");
 });
@@ -121,6 +123,46 @@ test("generate: gives up after max repairs with a GenerationFailed", async () =>
     generateBook({ lex, snapshot: snap, request: { prompt: "x" }, writer: stubborn, maxRepairs: 1 }),
     (e: unknown) => e instanceof GenerationFailed && e.report.violations.length > 0,
   );
+});
+
+test("validator: grammar-ish checks and theme-word budget ignores names", () => {
+  const spec = buildSpec(lex, snap, { prompt: "x", pages: 2 });
+  const draft: DraftBook = {
+    title: "Zork",
+    characters: [{ name: "Zork", description: "a robot" }],
+    previewWords: ["Zork", "bakery", "dinosaur", "octopus", "jungle"],
+    pages: [
+      { text: "zork had a bakery. the dinosaur sat.", scene: "" },
+      { text: "An octopus came to the jungle.", scene: "" },
+    ],
+    coverScene: "", summary: "", chatQuestions: [], nextOptions: [],
+  };
+  const r = validate(draft, spec, snap, lex);
+  assert.ok(r.problems.some((p) => p.includes('write the name "Zork" with a capital')));
+  assert.ok(r.problems.some((p) => p.includes("must start with a capital")));
+  assert.ok(r.problems.some((p) => p.includes("4 preview theme words") && !p.includes("zork")));
+});
+
+test("generate: editor review feeds the repair loop", async () => {
+  const reviews: string[] = [];
+  const book = await generateBook({
+    lex,
+    snapshot: snap,
+    request: { prompt: "a shark bakery" },
+    writer: (spec) => {
+      const m = new MockWriter(spec) as MockWriter & { review: Writer["review"] };
+      let n = 0;
+      m.review = async () => {
+        n++;
+        reviews.push(`r${n}`);
+        return n === 1 ? { ok: false, issues: ['"Max the make are." is not a sentence'] } : { ok: true, issues: [] };
+      };
+      return m;
+    },
+  });
+  assert.ok(book.validation.pass);
+  assert.deepEqual(reviews, ["r1", "r2"]);
+  assert.equal(book.rounds, 3);
 });
 
 test("server: auth and mock generation", async () => {

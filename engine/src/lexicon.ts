@@ -19,6 +19,8 @@ export interface LexEntry {
   r: number;
   /** Zipf frequency. */
   z: number;
+  /** 1 = common children's-book word (lexicon/kid_words.txt). */
+  k?: number;
 }
 
 export interface Pattern {

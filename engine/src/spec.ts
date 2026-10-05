@@ -5,8 +5,8 @@ import type { BookRequest, LearnerSnapshot, LessonSpec, Thresholds } from "./typ
 export const DEFAULT_THRESHOLDS: Thresholds = {
   minSupportedPct: 0.85,
   maxTargetPct: 0.15,
-  minTargetTokens: 5,
-  maxStoryWords: 4,
+  minTargetTokens: 6,
+  maxStoryWords: 3,
   maxSentenceWords: 10,
   maxSentencesPerPage: 3,
 };
@@ -26,13 +26,14 @@ export function wordsForTarget(lex: Lexicon, snap: LearnerSnapshot, pattern: str
   const out: string[] = [];
   for (const w of lex.byRank) {
     const e = lex.get(w)!;
-    if (e.r > MAX_RANK_FOR_WRITING) break;
+    if (e.r > MAX_RANK_FOR_WRITING && !e.k) continue;
     if (e.h || w.includes("'") || !e.p.includes(pattern)) continue;
     const unk = unknownPatterns(snap, e);
     if (unk.length === 1 && unk[0] === pattern) out.push(w);
-    if (out.length >= limit) break;
   }
-  return out;
+  // Children's-book words first, then by frequency.
+  out.sort((a, b) => (lex.get(b)!.k ?? 0) - (lex.get(a)!.k ?? 0) || lex.get(a)!.r - lex.get(b)!.r);
+  return out.slice(0, limit);
 }
 
 export function chooseTargets(lex: Lexicon, snap: LearnerSnapshot): string[] {
@@ -63,7 +64,7 @@ export function buildSpec(
 ): LessonSpec {
   const thresholds = { ...DEFAULT_THRESHOLDS, ...opts.thresholds };
   const targets = chooseTargets(lex, snap);
-  const targetWords = targets.flatMap((t) => wordsForTarget(lex, snap, t, 30));
+  const targetWords = targets.flatMap((t) => wordsForTarget(lex, snap, t, 120));
 
   // review: due words directly, due patterns via a couple of known example words
   const reviewWords: string[] = [];

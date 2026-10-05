@@ -1,4 +1,4 @@
-import { DRAFT_SCHEMA } from "./prompt.ts";
+import { DRAFT_SCHEMA, JUDGE_PROMPT, JUDGE_SCHEMA, judgeInput } from "./prompt.ts";
 import type { DraftBook, LessonSpec } from "./types.ts";
 
 export interface Message {
@@ -6,9 +6,16 @@ export interface Message {
   content: string;
 }
 
+export interface Review {
+  ok: boolean;
+  issues: string[];
+}
+
 export interface Writer {
   readonly name: string;
   write(messages: Message[]): Promise<DraftBook>;
+  /** Optional editorial review (grammar, coherence). Absent = always ok. */
+  review?(draft: DraftBook, idea: string): Promise<Review>;
 }
 
 export class OpenAIWriter implements Writer {
@@ -17,19 +24,33 @@ export class OpenAIWriter implements Writer {
     private apiKey = process.env.OPENAI_API_KEY ?? "",
     model = process.env.OPENAI_MODEL ?? "gpt-5-mini",
     private baseURL = process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1",
-    private reasoningEffort = process.env.OPENAI_REASONING_EFFORT,
+    private reasoningEffort = process.env.OPENAI_REASONING_EFFORT ?? "low",
   ) {
     if (!apiKey) throw new Error("OPENAI_API_KEY is not set");
     this.name = model;
   }
 
   async write(messages: Message[]): Promise<DraftBook> {
+    return this.chat<DraftBook>(messages, DRAFT_SCHEMA);
+  }
+
+  async review(draft: DraftBook, idea: string): Promise<Review> {
+    return this.chat<Review>(
+      [
+        { role: "system", content: JUDGE_PROMPT },
+        { role: "user", content: judgeInput(draft, idea) },
+      ],
+      JUDGE_SCHEMA,
+    );
+  }
+
+  private async chat<T>(messages: Message[], schema: object): Promise<T> {
     const body: Record<string, unknown> = {
       model: this.name,
       messages,
-      response_format: { type: "json_schema", json_schema: DRAFT_SCHEMA },
+      response_format: { type: "json_schema", json_schema: schema },
     };
-    if (this.reasoningEffort) body.reasoning_effort = this.reasoningEffort;
+    if (this.reasoningEffort && this.reasoningEffort !== "none") body.reasoning_effort = this.reasoningEffort;
     const res = await fetchWithRetry(`${this.baseURL}/chat/completions`, {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${this.apiKey}` },
@@ -38,7 +59,7 @@ export class OpenAIWriter implements Writer {
     const json = (await res.json()) as any;
     const content = json.choices?.[0]?.message?.content;
     if (!content) throw new Error(`OpenAI returned no content: ${JSON.stringify(json).slice(0, 500)}`);
-    return JSON.parse(content) as DraftBook;
+    return JSON.parse(content) as T;
   }
 }
 

@@ -6,9 +6,9 @@ He reads every word aloud himself, so the words you may use are strictly limited
 
 Word rules (a computer checks every word, and a story that breaks them is rejected):
 - Use ONLY words from the KNOWN list, the PRACTICE list, and the NEW HEART WORDS list.
-- Character names and up to {maxStory} other theme words (like "dinosaur") may be used even if not listed, but you MUST list every one of them in "previewWords" (character names too). An adult reads these to him before the story.
+- Character names, plus at most {maxStory} other theme words that the story truly needs (like "dark" in a story about being afraid of the dark), may be used even if not listed. List every one of them in "previewWords" (names too). An adult reads these to him before the story. Do not list words that are already in the lists.
 - Word forms count as separate words: if "jumped" is not listed, do not use it, even if "jump" is.
-- Use the PRACTICE words often: each practice pattern must appear at least {minTarget} times across the book. Using the same practice word several times is good.
+- PRACTICE words: use them {targetMin} to {targetMax} times in total across the whole book (repeats count). Fewer is not enough practice; more makes the book too hard. Pick the practice words that fit THIS story best (a bakery story should use "bake" and "cake", not "game").
 - Use each NEW HEART WORD at least 3 times.
 - Use each REVIEW word at least once.
 - No digits (write "two", not "2"). No contractions unless the contraction itself is in a list. Avoid hyphenated words.
@@ -17,6 +17,11 @@ Shape rules:
 - Exactly {pages} pages. Each page has 1 to {maxSent} short sentences of at most {maxWords} words each.
 - {minWords} to {maxWords2} words in total, counting the title.
 - The title follows the same word rules.
+
+Grammar rules (just as important as the word rules):
+- Every sentence must be correct, natural English that a children's book editor would print. Never drop endings ("Max love soup"), use the wrong verb form ("the cup fall"), or leave out small words to dodge a word you can't use. If a word you want isn't allowed, rephrase the whole sentence another way.
+- Capitalize the first word of every sentence and every name.
+- Stay in one point of view (usually third person: "Max ran," not "We ran").
 
 Story rules:
 - A real story: a character he cares about, a problem, two or three tries, a fun ending. Kind humor is great. Repetition with a twist is great.
@@ -31,13 +36,24 @@ Story rules:
 
 export function systemPrompt(spec: LessonSpec): string {
   const t = spec.thresholds;
+  const [tMin, tMax] = targetRange(spec);
   return SYSTEM_PROMPT.replace("{maxStory}", String(t.maxStoryWords))
-    .replace("{minTarget}", String(t.minTargetTokens))
+    .replace("{targetMin}", String(tMin))
+    .replace("{targetMax}", String(tMax))
     .replace("{pages}", String(spec.pages))
     .replace("{maxSent}", String(t.maxSentencesPerPage))
     .replace("{maxWords}", String(t.maxSentenceWords))
     .replace("{minWords}", String(spec.wordBudget[0]))
     .replace("{maxWords2}", String(spec.wordBudget[1]));
+}
+
+/** Total practice-word uses to ask for: enough of each pattern, never above the cap at the low end of the word budget. */
+export function targetRange(spec: LessonSpec): [number, number] {
+  const n = Math.max(1, spec.targets.length);
+  const lo = spec.thresholds.minTargetTokens * n;
+  const avgWords = (spec.wordBudget[0] + spec.wordBudget[1]) / 2;
+  const hi = Math.max(lo + 2, Math.floor(avgWords * spec.thresholds.maxTargetPct * 0.9));
+  return [lo, hi];
 }
 
 export function userPrompt(spec: LessonSpec, req: BookRequest, lex: Lexicon): string {
@@ -55,7 +71,7 @@ export function userPrompt(spec: LessonSpec, req: BookRequest, lex: Lexicon): st
   for (const t of spec.targets) {
     const p = lex.patternById.get(t);
     const ws = spec.targetWords.filter((w) => lex.get(w)?.p.includes(t));
-    lines.push(`PRACTICE pattern "${p?.name ?? t}" (${p?.kid ?? ""}). Use these words: ${ws.join(", ")}`);
+    lines.push(`PRACTICE pattern "${p?.name ?? t}" (${p?.kid ?? ""}). Choose the ones that fit the story from: ${ws.join(", ")}`);
   }
   if (spec.newHeartWords.length) lines.push(`NEW HEART WORDS (use each at least 3 times): ${spec.newHeartWords.join(", ")}`);
   if (spec.reviewWords.length) lines.push(`REVIEW words (use each at least once): ${spec.reviewWords.join(", ")}`);
@@ -75,8 +91,11 @@ export function repairPrompt(draft: DraftBook, report: ValidationReport, spec: L
     lines.push("", "WORDS HE CAN'T READ YET (replace each with a KNOWN or PRACTICE word, or rephrase the sentence):");
     for (const v of report.violations) lines.push(`- "${v.word}" (x${v.count}): ${v.reason}`);
   }
-  if (spec.targets.length)
-    lines.push("", `Reminder: PRACTICE words are ${spec.targetWords.slice(0, 30).join(", ")}.`);
+  if (spec.targets.length) {
+    const [lo, hi] = targetRange(spec);
+    lines.push("", `Reminder: use PRACTICE words ${lo}-${hi} times in total. They are: ${spec.targetWords.slice(0, 50).join(", ")}.`);
+  }
+  lines.push("", "Keep every sentence grammatical while you fix these. Rephrase rather than dropping word endings.");
   lines.push("", "PREVIOUS DRAFT:", JSON.stringify({ title: draft.title, previewWords: draft.previewWords, pages: draft.pages.map((p) => p.text) }));
   return lines.join("\n");
 }
@@ -116,3 +135,27 @@ export const DRAFT_SCHEMA = {
     },
   },
 } as const;
+
+export const JUDGE_PROMPT = `You are a strict children's book editor. You review a short early-reader story whose vocabulary is deliberately limited (that is fine and expected: simple, repetitive words are OK).
+Flag ONLY real problems:
+- ungrammatical sentences (missing verb endings like "Max love soup", wrong verb forms like "the cup fall", missing articles, broken phrases)
+- sentences that don't make sense, or a story that doesn't hang together (events that come from nowhere, an ending that doesn't resolve the problem)
+- a story that ignores the requested idea (e.g. "afraid of the dark" never mentions darkness or fear)
+- point-of-view switches, or anything unkind, scary, or inappropriate for a 7-year-old
+Do NOT flag simple vocabulary, short sentences, or repetition.
+Return ok=true when there is nothing that a children's book editor would refuse to print. Otherwise list each issue concretely (quote the sentence and say how to fix it, without introducing harder words).`;
+
+export const JUDGE_SCHEMA = {
+  name: "story_review",
+  strict: true,
+  schema: {
+    type: "object",
+    additionalProperties: false,
+    required: ["ok", "issues"],
+    properties: { ok: { type: "boolean" }, issues: { type: "array", items: { type: "string" } } },
+  },
+} as const;
+
+export function judgeInput(draft: DraftBook, idea: string): string {
+  return [`Requested idea: ${idea}`, `Title: ${draft.title}`, ...draft.pages.map((p, i) => `${i + 1}. ${p.text}`)].join("\n");
+}
