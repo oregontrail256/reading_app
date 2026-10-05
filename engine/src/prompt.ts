@@ -35,7 +35,9 @@ Story rules:
 - "summary": one or two sentences an author would need to continue the series.
 - "chatQuestions": exactly two questions an adult asks out loud afterwards: one about what happened or why, one open-ended "what would you do / what do you think" question. These are read to him, so any words are fine.
 - "nextOptions": exactly three short, exciting ideas for what could happen in the next book (read aloud to him; any words).
-- "characters": the main characters with a one-line visual description each (species, colors, clothing) so pictures stay consistent.`;
+- "characters": the main characters with a one-line visual description each (species, colors, clothing) so pictures stay consistent. For MAIN CHARACTERS that were given, copy their given description exactly and only add clothing.
+- Every human character has black hair. Say so in their character description and whenever a scene describes them.
+- Use each given character's gender consistently (he/she) in the text.`;
 
 export function systemPrompt(spec: LessonSpec): string {
   const t = spec.thresholds;
@@ -64,7 +66,7 @@ export function userPrompt(spec: LessonSpec, req: BookRequest, lex: Lexicon): st
   const lines: string[] = [];
   lines.push(`STORY IDEA: ${req.prompt}`);
   if (req.characters?.length)
-    lines.push(`CHARACTERS (keep their names and looks): ${req.characters.map((c) => `${c.name}: ${c.description}`).join("; ")}`);
+    lines.push(`MAIN CHARACTERS (the story is about them; keep their names, genders, and looks exactly): ${req.characters.map((c) => `${c.name}: ${c.description}`).join("; ")}`);
   if (req.series) {
     lines.push(`SERIES "${req.series.title}". Earlier books, oldest first:`);
     req.series.summaries.forEach((s, i) => lines.push(`  ${i + 1}. ${s}`));

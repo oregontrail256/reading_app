@@ -29,6 +29,37 @@ public struct AppSettings: Codable, Sendable, Equatable {
     public var pages: Int = 10
     public var childName: String = ""
     public init() {}
+
+    /// The family cast offered on the "Make a new book" screen. Descriptions go to both the story
+    /// writer and the illustrator, so looks stay consistent across books.
+    public static let defaultFamily: [StoryCharacter] = [
+        StoryCharacter(name: "Jamie", description: "a boy with black hair"),
+        StoryCharacter(name: "Lincoln", description: "a boy with black hair"),
+        StoryCharacter(name: "Mommy", description: "the kids' mom, a woman with black hair"),
+        StoryCharacter(name: "Daddy", description: "the kids' dad, a man with black hair"),
+        StoryCharacter(name: "Lily", description: "a girl with black hair"),
+        StoryCharacter(name: "Reese", description: "a girl with black hair"),
+        StoryCharacter(name: "Loki", description: "the family dog: a small black-and-white dog that looks like a mini border collie or sheltie"),
+    ]
+
+    // Tolerant decoding: settings saved by an older version (missing newer keys) keep their values
+    // and get defaults for the rest, instead of being thrown away.
+    enum CodingKeys: String, CodingKey {
+        case proxyURL, appToken, images, imageQuality, avoidTopics, readingMode, pages, childName
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let d = AppSettings()
+        proxyURL = try c.decodeIfPresent(String.self, forKey: .proxyURL) ?? d.proxyURL
+        appToken = try c.decodeIfPresent(String.self, forKey: .appToken) ?? d.appToken
+        images = try c.decodeIfPresent(Bool.self, forKey: .images) ?? d.images
+        imageQuality = try c.decodeIfPresent(String.self, forKey: .imageQuality) ?? d.imageQuality
+        avoidTopics = try c.decodeIfPresent(String.self, forKey: .avoidTopics) ?? d.avoidTopics
+        readingMode = try c.decodeIfPresent(ReadingMode.self, forKey: .readingMode) ?? d.readingMode
+        pages = try c.decodeIfPresent(Int.self, forKey: .pages) ?? d.pages
+        childName = try c.decodeIfPresent(String.self, forKey: .childName) ?? d.childName
+    }
 }
 
 /// JSON-file persistence under one directory:

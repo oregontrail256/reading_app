@@ -4,6 +4,7 @@ import type { Character } from "./types.ts";
 export const STYLE =
   "Warm, bright children's picture-book illustration in soft watercolor and colored pencil. " +
   "Simple, uncluttered composition with one clear focal action, expressive friendly characters, gentle lighting. " +
+  "Every person in the picture has black hair. " +
   "Absolutely no text, letters, numbers, signs, or written words anywhere in the image.";
 
 export interface ImageOptions {

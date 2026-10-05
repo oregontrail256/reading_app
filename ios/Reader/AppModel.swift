@@ -149,7 +149,10 @@ final class AppModel {
         guard let s = series.first(where: { $0.id == seriesId }) else { return }
         let req = BookRequest(
             prompt: s.prompt,
-            characters: s.characters,
+            characters: s.characters.map { c in
+                // Family descriptions always win (older series may have saved vaguer ones).
+                AppSettings.defaultFamily.first { $0.name.lowercased() == c.name.lowercased() } ?? c
+            },
             series: SeriesContext(id: s.id, title: s.title, summaries: s.summaries, choice: choice)
         )
         enqueue(PendingBook(label: choice, request: req, seriesId: s.id))
@@ -275,8 +278,9 @@ final class AppModel {
         return s.id
     }
 
+    /// Family first, then characters from his series (deduplicated by name).
     var allCharacters: [StoryCharacter] {
         var seen = Set<String>()
-        return series.flatMap(\.characters).filter { seen.insert($0.name.lowercased()).inserted }
+        return (AppSettings.defaultFamily + series.flatMap(\.characters)).filter { seen.insert($0.name.lowercased()).inserted }
     }
 }

@@ -7,7 +7,8 @@ struct NewBookView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
 
-    @State private var who: String?
+    /// Picked "who" chips that aren't named characters ("a dragon").
+    @State private var creatures: Set<String> = []
     @State private var place: String?
     @State private var problem: String?
     @State private var idea = ""
@@ -17,17 +18,45 @@ struct NewBookView: View {
     private let placeOptions = ["at a bakery", "in space", "under the sea", "in a jungle", "in a castle", "at school", "on a farm", "on a volcano", "at the beach", "in a big city"]
     private let problemOptions = ["loses something", "has a big race", "makes a new friend", "gets caught in a storm", "plans a surprise party", "solves a mystery", "builds something huge", "goes on a trip"]
 
+    /// Named characters he picked, in display order.
+    private var pickedNames: [String] { model.allCharacters.map(\.name).filter { cast.contains($0) } }
+
+    /// "Lincoln, Loki and a dragon"
+    private var whoPhrase: String {
+        let all = pickedNames + whoOptions.filter { creatures.contains($0) }
+        guard all.count > 1 else { return all.first ?? "" }
+        return all.dropLast().joined(separator: ", ") + " and " + all.last!
+    }
+
     private var prompt: String {
         let typed = idea.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !typed.isEmpty { return typed }
-        return [who, place, problem].compactMap { $0 }.joined(separator: " ")
+        if !typed.isEmpty { return whoPhrase.isEmpty ? typed : "\(typed), starring \(whoPhrase)" }
+        if whoPhrase.isEmpty { return [place, problem].compactMap { $0 }.isEmpty ? "" : (["someone"] + [place, problem].compactMap { $0 }).joined(separator: " ") }
+        let rest = [place, problem].compactMap { $0 }
+        return rest.isEmpty ? "a fun adventure with \(whoPhrase)" : ([whoPhrase] + rest).joined(separator: " ")
     }
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 30) {
-                    chips("Who is it about?", whoOptions, $who)
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Who is it about?").font(Theme.reading(26, bold: true))
+                        Text("Pick as many as you like.").font(.callout).foregroundStyle(.secondary)
+                        FlowLayout(spacing: 12, lineSpacing: 12) {
+                            ForEach(model.allCharacters, id: \.name) { c in
+                                chip(c.name, selected: cast.contains(c.name)) {
+                                    if cast.contains(c.name) { cast.remove(c.name) } else { cast.insert(c.name); Speech.shared.say(c.name) }
+                                }
+                            }
+                            ForEach(whoOptions, id: \.self) { o in
+                                chip(o, selected: creatures.contains(o)) {
+                                    if creatures.contains(o) { creatures.remove(o) } else { creatures.insert(o); Speech.shared.say(o) }
+                                }
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                     chips("Where?", placeOptions, $place)
                     chips("What happens?", problemOptions, $problem)
 
@@ -38,19 +67,6 @@ struct NewBookView: View {
                             .padding(16)
                             .background(.white, in: RoundedRectangle(cornerRadius: 16))
                         Text("Tip: tap the microphone on the keyboard to say it.").font(.callout).foregroundStyle(.secondary)
-                    }
-
-                    if !model.allCharacters.isEmpty {
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("Bring along").font(Theme.reading(26, bold: true))
-                            FlowLayout(spacing: 12, lineSpacing: 12) {
-                                ForEach(model.allCharacters, id: \.name) { c in
-                                    chip(c.name, selected: cast.contains(c.name)) {
-                                        if cast.contains(c.name) { cast.remove(c.name) } else { cast.insert(c.name) }
-                                    }
-                                }
-                            }
-                        }
                     }
 
                     if !prompt.isEmpty {
