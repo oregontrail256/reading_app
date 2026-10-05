@@ -73,6 +73,9 @@ try {
     console.error(`\nFAILED after repairs: ${e.report.problems.join("; ")}`);
     for (const v of e.report.violations) console.error(`  ${v.word} x${v.count}: ${v.reason}`);
     e.draft.pages.forEach((p, i) => console.error(`  ${i + 1}. ${p.text}`));
+    const base = join(values.out!, `FAILED-${Date.now()}`);
+    writeFileSync(`${base}.json`, JSON.stringify({ draft: e.draft, report: e.report }, null, 1));
+    console.error(`\n  draft saved -> ${base}.json (no images are made for a failed book)`);
     process.exit(2);
   }
   throw e;

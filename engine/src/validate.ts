@@ -96,14 +96,16 @@ export function validate(draft: DraftBook, spec: LessonSpec, snap: LearnerSnapsh
   }
 
   const total = Object.values(counts).reduce((a, b) => a + b, 0) || 1;
-  const supportedPct = (counts.known + counts.story) / total;
+  // Known, pre-taught preview words, and the new heart word (taught in the preview) are all "supported".
+  // Practice words are capped separately, and unknown words must be zero, so this mostly guards the mix.
+  const supportedPct = (counts.known + counts.story + counts.heart) / total;
   const targetPct = counts.target / total;
   const violations = [...bad.values()].sort((a, b) => b.count - a.count);
   const th = spec.thresholds;
 
   if (violations.length) problems.push(`${violations.length} word(s) he can't read yet`);
   if (supportedPct < th.minSupportedPct)
-    problems.push(`only ${(supportedPct * 100).toFixed(0)}% of words are known words; need at least ${(th.minSupportedPct * 100).toFixed(0)}%`);
+    problems.push(`only ${(supportedPct * 100).toFixed(0)}% of words are known or pre-taught; need at least ${(th.minSupportedPct * 100).toFixed(0)}% (use fewer practice words)`);
   if (targetPct > th.maxTargetPct)
     problems.push(`${counts.target} practice-word uses is too many for ${total} words; use at most ${Math.floor(total * th.maxTargetPct)} (replace some with known words)`);
   for (const t of spec.targets) {
