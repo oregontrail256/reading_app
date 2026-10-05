@@ -1,0 +1,581 @@
+[
+ {
+  "id": "consonants",
+  "name": "Single consonant sounds",
+  "kid": "b, d, m, s, t\u2026",
+  "examples": [
+   "map",
+   "sit",
+   "big"
+  ],
+  "order": 1
+ },
+ {
+  "id": "short_a",
+  "name": "Short a",
+  "kid": "a as in cat",
+  "examples": [
+   "cat",
+   "map",
+   "bag"
+  ],
+  "order": 2
+ },
+ {
+  "id": "short_i",
+  "name": "Short i",
+  "kid": "i as in pig",
+  "examples": [
+   "pig",
+   "sit",
+   "win"
+  ],
+  "order": 3
+ },
+ {
+  "id": "short_o",
+  "name": "Short o",
+  "kid": "o as in hot",
+  "examples": [
+   "hot",
+   "dog",
+   "top"
+  ],
+  "order": 4
+ },
+ {
+  "id": "short_u",
+  "name": "Short u",
+  "kid": "u as in cup",
+  "examples": [
+   "cup",
+   "bus",
+   "sun"
+  ],
+  "order": 5
+ },
+ {
+  "id": "short_e",
+  "name": "Short e",
+  "kid": "e as in bed",
+  "examples": [
+   "bed",
+   "red",
+   "ten"
+  ],
+  "order": 6
+ },
+ {
+  "id": "x_qu",
+  "name": "x and qu",
+  "kid": "x as in box, qu as in quit",
+  "examples": [
+   "box",
+   "fix",
+   "quit"
+  ],
+  "order": 7
+ },
+ {
+  "id": "floss",
+  "name": "Double letters (ff, ll, ss, zz)",
+  "kid": "ll as in bell",
+  "examples": [
+   "bell",
+   "off",
+   "miss"
+  ],
+  "order": 8
+ },
+ {
+  "id": "digraph_sh",
+  "name": "sh",
+  "kid": "sh as in ship",
+  "examples": [
+   "ship",
+   "fish",
+   "shop"
+  ],
+  "order": 9
+ },
+ {
+  "id": "digraph_ch",
+  "name": "ch",
+  "kid": "ch as in chip",
+  "examples": [
+   "chip",
+   "much",
+   "chin"
+  ],
+  "order": 10
+ },
+ {
+  "id": "digraph_th",
+  "name": "th",
+  "kid": "th as in this and thin",
+  "examples": [
+   "this",
+   "then",
+   "with"
+  ],
+  "order": 11
+ },
+ {
+  "id": "digraph_wh",
+  "name": "wh",
+  "kid": "wh as in when",
+  "examples": [
+   "when",
+   "which",
+   "whip"
+  ],
+  "order": 12
+ },
+ {
+  "id": "digraph_ck",
+  "name": "ck",
+  "kid": "ck as in duck",
+  "examples": [
+   "duck",
+   "back",
+   "kick"
+  ],
+  "order": 13
+ },
+ {
+  "id": "blend_initial",
+  "name": "Beginning blends",
+  "kid": "st, fr, pl\u2026",
+  "examples": [
+   "stop",
+   "frog",
+   "plan"
+  ],
+  "order": 14
+ },
+ {
+  "id": "blend_final",
+  "name": "Ending blends",
+  "kid": "nd, st, mp\u2026",
+  "examples": [
+   "jump",
+   "hand",
+   "best"
+  ],
+  "order": 15
+ },
+ {
+  "id": "ng_nk",
+  "name": "ng and nk",
+  "kid": "ng as in ring, nk as in pink",
+  "examples": [
+   "ring",
+   "song",
+   "pink"
+  ],
+  "order": 16
+ },
+ {
+  "id": "suffix_s",
+  "name": "Endings -s and -es",
+  "kid": "-s as in cats",
+  "examples": [
+   "cats",
+   "dogs",
+   "boxes"
+  ],
+  "order": 17
+ },
+ {
+  "id": "a_al",
+  "name": "all and al",
+  "kid": "all as in ball",
+  "examples": [
+   "ball",
+   "tall",
+   "walk"
+  ],
+  "order": 18
+ },
+ {
+  "id": "tch_dge",
+  "name": "tch and dge",
+  "kid": "tch as in catch",
+  "examples": [
+   "catch",
+   "match",
+   "edge"
+  ],
+  "order": 19
+ },
+ {
+  "id": "suffix_ing",
+  "name": "Ending -ing",
+  "kid": "-ing as in jumping",
+  "examples": [
+   "jumping",
+   "running",
+   "making"
+  ],
+  "order": 20
+ },
+ {
+  "id": "suffix_ed",
+  "name": "Ending -ed",
+  "kid": "-ed as in jumped",
+  "examples": [
+   "jumped",
+   "played",
+   "landed"
+  ],
+  "order": 21
+ },
+ {
+  "id": "vce_a",
+  "name": "Silent e: a_e",
+  "kid": "a_e as in cake",
+  "examples": [
+   "cake",
+   "made",
+   "game"
+  ],
+  "order": 22
+ },
+ {
+  "id": "vce_i",
+  "name": "Silent e: i_e",
+  "kid": "i_e as in bike",
+  "examples": [
+   "bike",
+   "time",
+   "like"
+  ],
+  "order": 23
+ },
+ {
+  "id": "vce_o",
+  "name": "Silent e: o_e",
+  "kid": "o_e as in home",
+  "examples": [
+   "home",
+   "nose",
+   "rope"
+  ],
+  "order": 24
+ },
+ {
+  "id": "vce_u",
+  "name": "Silent e: u_e",
+  "kid": "u_e as in cute",
+  "examples": [
+   "cute",
+   "huge",
+   "rule"
+  ],
+  "order": 25
+ },
+ {
+  "id": "vce_e",
+  "name": "Silent e: e_e",
+  "kid": "e_e as in these",
+  "examples": [
+   "these",
+   "theme",
+   "Pete"
+  ],
+  "order": 26
+ },
+ {
+  "id": "soft_cg",
+  "name": "Soft c and g",
+  "kid": "c as in face, g as in page",
+  "examples": [
+   "face",
+   "nice",
+   "page"
+  ],
+  "order": 27
+ },
+ {
+  "id": "open_vowel",
+  "name": "Open syllables (he, go)",
+  "kid": "e as in he, o as in go",
+  "examples": [
+   "he",
+   "go",
+   "hi"
+  ],
+  "order": 28
+ },
+ {
+  "id": "y_long_i",
+  "name": "y as in my",
+  "kid": "y as in fly",
+  "examples": [
+   "my",
+   "fly",
+   "why"
+  ],
+  "order": 29
+ },
+ {
+  "id": "y_long_e",
+  "name": "y as in happy",
+  "kid": "y as in happy",
+  "examples": [
+   "happy",
+   "funny",
+   "baby"
+  ],
+  "order": 30
+ },
+ {
+  "id": "closed_long",
+  "name": "Long vowel before nd, ld, st (find, cold, most)",
+  "kid": "ind as in find, old as in cold",
+  "examples": [
+   "find",
+   "cold",
+   "most"
+  ],
+  "order": 31
+ },
+ {
+  "id": "two_syllable",
+  "name": "Two-syllable words",
+  "kid": "words with two parts",
+  "examples": [
+   "sunset",
+   "rabbit",
+   "picnic"
+  ],
+  "order": 32
+ },
+ {
+  "id": "r_ar",
+  "name": "ar",
+  "kid": "ar as in car",
+  "examples": [
+   "car",
+   "park",
+   "star"
+  ],
+  "order": 33
+ },
+ {
+  "id": "r_or",
+  "name": "or",
+  "kid": "or as in fork",
+  "examples": [
+   "fork",
+   "corn",
+   "more"
+  ],
+  "order": 34
+ },
+ {
+  "id": "r_er",
+  "name": "er, ir, ur",
+  "kid": "er as in her, ir as in bird, ur as in turn",
+  "examples": [
+   "her",
+   "bird",
+   "turn"
+  ],
+  "order": 35
+ },
+ {
+  "id": "vt_ai_ay",
+  "name": "ai and ay",
+  "kid": "ai as in rain, ay as in play",
+  "examples": [
+   "rain",
+   "play",
+   "wait"
+  ],
+  "order": 36
+ },
+ {
+  "id": "vt_ee_ea",
+  "name": "ee and ea",
+  "kid": "ee as in tree, ea as in eat",
+  "examples": [
+   "tree",
+   "eat",
+   "sea"
+  ],
+  "order": 37
+ },
+ {
+  "id": "vt_oa_ow",
+  "name": "oa and ow (as in snow)",
+  "kid": "oa as in boat, ow as in snow",
+  "examples": [
+   "boat",
+   "snow",
+   "road"
+  ],
+  "order": 38
+ },
+ {
+  "id": "vt_igh_ie",
+  "name": "igh and ie",
+  "kid": "igh as in night, ie as in pie",
+  "examples": [
+   "night",
+   "light",
+   "pie"
+  ],
+  "order": 39
+ },
+ {
+  "id": "oo",
+  "name": "oo (moon, book)",
+  "kid": "oo as in moon and book",
+  "examples": [
+   "moon",
+   "book",
+   "food"
+  ],
+  "order": 40
+ },
+ {
+  "id": "diph_ou_ow",
+  "name": "ou and ow (as in cow)",
+  "kid": "ou as in out, ow as in cow",
+  "examples": [
+   "out",
+   "cow",
+   "house"
+  ],
+  "order": 41
+ },
+ {
+  "id": "diph_oi_oy",
+  "name": "oi and oy",
+  "kid": "oi as in coin, oy as in boy",
+  "examples": [
+   "coin",
+   "boy",
+   "toy"
+  ],
+  "order": 42
+ },
+ {
+  "id": "vt_au_aw",
+  "name": "au and aw",
+  "kid": "aw as in saw",
+  "examples": [
+   "saw",
+   "draw",
+   "haul"
+  ],
+  "order": 43
+ },
+ {
+  "id": "vt_ue_ew",
+  "name": "ue and ew",
+  "kid": "ew as in new, ue as in blue",
+  "examples": [
+   "new",
+   "blue",
+   "grew"
+  ],
+  "order": 44
+ },
+ {
+  "id": "silent_letters",
+  "name": "Silent letters (kn, wr, mb)",
+  "kid": "kn as in know",
+  "examples": [
+   "know",
+   "write",
+   "lamb"
+  ],
+  "order": 45
+ },
+ {
+  "id": "cle",
+  "name": "Consonant + le",
+  "kid": "le as in little",
+  "examples": [
+   "little",
+   "apple",
+   "table"
+  ],
+  "order": 46
+ },
+ {
+  "id": "ph",
+  "name": "ph",
+  "kid": "ph as in phone",
+  "examples": [
+   "phone",
+   "graph"
+  ],
+  "order": 47
+ },
+ {
+  "id": "vt_other",
+  "name": "Other vowel teams (ey, ei, eigh, ea as in head)",
+  "kid": "ea as in head",
+  "examples": [
+   "head",
+   "key",
+   "eight"
+  ],
+  "order": 48
+ },
+ {
+  "id": "r_other",
+  "name": "air, are, ear, ere, our",
+  "kid": "air as in hair",
+  "examples": [
+   "hair",
+   "care",
+   "hear"
+  ],
+  "order": 49
+ },
+ {
+  "id": "tion_ture",
+  "name": "-tion and -ture",
+  "kid": "tion as in station",
+  "examples": [
+   "nation",
+   "picture"
+  ],
+  "order": 50
+ },
+ {
+  "id": "multisyllable",
+  "name": "Words with three or more syllables",
+  "kid": "long words",
+  "examples": [
+   "elephant",
+   "animal"
+  ],
+  "order": 51
+ },
+ {
+  "id": "contraction",
+  "name": "Contractions",
+  "kid": "can't, it's",
+  "examples": [
+   "can't",
+   "it's",
+   "don't"
+  ],
+  "order": 52
+ },
+ {
+  "id": "advanced",
+  "name": "Less common spellings",
+  "kid": "tricky spellings",
+  "examples": [
+   "have",
+   "house"
+  ],
+  "order": 53
+ }
+]

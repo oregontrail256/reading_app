@@ -1,0 +1,19 @@
+# Everyday children's-book vocabulary that general web frequency lists under-rank.
+# These are always included in the lexicon (if the CMU dictionary has them).
+frog shrimp splash dinosaur dinosaurs bakery baker cupcake cupcakes cookie cookies muffin pancake pancakes waffle sandwich pizza
+apple apples banana bananas grape grapes carrot carrots cheese bread cake cakes jam soup egg eggs milk juice candy snack picnic
+cat cats dog dogs pup pups puppy kitten fox foxes duck ducks hen hens pig pigs cow cows goat goats sheep horse pony bunny rabbit
+mouse mice rat bat bats bee bees bug bugs ant ants spider worm worms snail slug fish crab crabs whale whales shark sharks seal
+octopus turtle frog frogs toad snake snakes lizard dragon dragons unicorn monster monsters robot robots alien aliens pirate pirates
+knight castle king queen prince princess wizard witch fairy giant troll owl owls hawk eagle duck parrot penguin penguins bear bears
+lion lions tiger tigers zebra giraffe hippo elephant monkey monkeys panda koala kangaroo squirrel deer moose wolf wolves skunk
+jungle forest pond lake river sea ocean beach sand shell shells wave waves rock rocks hill hills cave nest tree trees log logs
+garden flower flowers grass leaf leaves seed seeds rain snow wind sun moon star stars sky cloud clouds storm rainbow
+ship ships boat boats truck trucks bus buses train trains plane planes rocket rockets bike bikes car cars van kite kites
+ball balls bat drum drums doll dolls toy toys block blocks game games puzzle box boxes bag bags hat hats cap caps sock socks
+bed beds tent tents rug cup cups dish pan pot lamp clock door window house home hut farm barn shop shops school park zoo
+mom dad sister brother grandma grandpa baby friend friends kid kids class teacher chef cook farmer
+jump jumps jumped jumping run runs ran running hop hops hopped hopping skip swim swims swam dig digs dug sit sits sat
+nap naps napped hug hugs hugged kick kicks kicked splash splashed swing swings dash dashed grab grabbed spin spins
+fast slow big small tall short red blue green yellow pink black white brown gold silver happy sad mad glad fun funny silly
+yum yummy wet dry hot cold soft loud quiet brave kind shy sleepy hungry

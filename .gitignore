@@ -1,0 +1,7 @@
+node_modules/
+.env
+engine/out/
+ios/Reader.xcodeproj/
+.build/
+.DS_Store
+xcuserdata/
