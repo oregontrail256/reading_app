@@ -130,7 +130,7 @@ export function validate(draft: DraftBook, spec: LessonSpec, snap: LearnerSnapsh
   }
   const themeUsed = [...storyUsed].filter((w) => !names.has(w));
   if (themeUsed.length > th.maxStoryWords)
-    problems.push(`${themeUsed.length} preview theme words (${themeUsed.join(", ")}); allow at most ${th.maxStoryWords} besides character names`);
+    problems.push(`${themeUsed.length} preview words (${themeUsed.join(", ")}); allow at most ${th.maxStoryWords} besides character names. Swap the least important ones for known words, keeping sentences natural`);
   if (draft.pages.length !== spec.pages) problems.push(`has ${draft.pages.length} pages; need exactly ${spec.pages}`);
   if (total < spec.wordBudget[0] || total > spec.wordBudget[1])
     problems.push(`has ${total} words; aim for ${spec.wordBudget[0]}-${spec.wordBudget[1]}`);

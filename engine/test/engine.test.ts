@@ -86,7 +86,7 @@ test("validator flags hard words, long sentences, and missing practice", () => {
   assert.ok(r.problems.some((p) => p.includes("Silent e: a_e") && p.includes("appears 0 times")));
 });
 
-test("generate: mock writer goes through a repair round and passes", async () => {
+test("generate: hard words the writer forgot to list are pre-taught, not rewritten", async () => {
   const logs: string[] = [];
   const book = await generateBook({
     lex,
@@ -95,12 +95,13 @@ test("generate: mock writer goes through a repair round and passes", async () =>
     writer: (spec) => new MockWriter(spec),
     log: (m) => logs.push(m),
   });
-  assert.equal(book.rounds, 2);
+  assert.equal(book.rounds, 1);
+  assert.ok(book.previewWords.includes("enormous"), `preview: ${book.previewWords}`);
   assert.ok(book.validation.pass);
   assert.equal(book.pages.length, 10);
   assert.ok(book.pages[0].tokens.some((t) => t.k === "target"));
   assert.ok(!("allowedWords" in book.spec));
-  assert.ok(logs[1].includes("can't read yet"));
+  assert.ok(logs[1].includes("PASS"));
 });
 
 test("generate: never fails over vocabulary; hard words become preview stretch words", async () => {
@@ -132,7 +133,7 @@ test("generate: an empty draft still fails", async () => {
 });
 
 test("validator: grammar-ish checks and theme-word budget ignores names", () => {
-  const spec = buildSpec(lex, snap, { prompt: "x", pages: 2 });
+  const spec = buildSpec(lex, snap, { prompt: "x", pages: 2 }, { thresholds: { maxStoryWords: 3 } });
   const draft: DraftBook = {
     title: "Zork",
     characters: [{ name: "Zork", description: "a robot" }],
@@ -146,7 +147,7 @@ test("validator: grammar-ish checks and theme-word budget ignores names", () => 
   const r = validate(draft, spec, snap, lex);
   assert.ok(r.problems.some((p) => p.includes('write the name "Zork" with a capital')));
   assert.ok(r.problems.some((p) => p.includes("must start with a capital")));
-  assert.ok(r.problems.some((p) => p.includes("6 preview theme words") && !p.includes("zork")));
+  assert.ok(r.problems.some((p) => p.includes("6 preview words") && !p.includes("zork")));
 });
 
 test("generate: editor review feeds the repair loop", async () => {
@@ -168,7 +169,7 @@ test("generate: editor review feeds the repair loop", async () => {
   });
   assert.ok(book.validation.pass);
   assert.deepEqual(reviews, ["r1", "r2"]);
-  assert.equal(book.rounds, 3);
+  assert.equal(book.rounds, 2);
 });
 
 test("server: auth and mock generation", async () => {

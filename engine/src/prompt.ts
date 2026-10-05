@@ -1,13 +1,15 @@
 import type { Lexicon } from "./lexicon.ts";
 import type { BookRequest, DraftBook, LessonSpec, ValidationReport } from "./types.ts";
 
-export const SYSTEM_PROMPT = `You write short, funny, warm picture-book stories for a 7-year-old who is learning to read.
-He reads every word aloud himself, so the words you may use are strictly limited to what he has learned.
+export const SYSTEM_PROMPT = `You write short, funny, warm picture-book stories for a 7-year-old who is learning to read. He reads them aloud himself.
 
-Word rules (a computer checks every word, and a story that breaks them is rejected):
-- Use ONLY words from the KNOWN list, the PRACTICE list, and the NEW HEART WORDS list.
-- Character names, plus at most {maxStory} other theme words that the story truly needs (like "dark" in a story about being afraid of the dark), may be used even if not listed. List every one of them in "previewWords" (names too). An adult reads these to him before the story. Do not list words that are already in the lists.
-- Word forms count as separate words: if "jumped" is not listed, do not use it, even if "jump" is.
+THE MOST IMPORTANT RULE: it must read like a real, published early-reader book: natural sentences, a real voice, rhythm, and a story a kid wants to hear again. Simple is good; stilted is not. Never bend a sentence out of shape to avoid a word.
+
+Word guidance (a computer checks every word):
+- Build the story mostly from the KNOWN words, so he can read most of it on his own. Short common words are your friends.
+- When the story is better with a word that is not in the lists, use it, and add it to "previewWords". An adult reads those to him before the story. Up to {maxStory} such words (besides character names) is fine. Choose them where they matter most: the key words of the idea (ninja, bathroom, dragon, dark), not ordinary words you could easily say with a known word.
+- List character names in "previewWords" too. Do not list words that are already in the lists.
+- Word forms count as separate words: if "jumped" is not listed but you need it, it is a preview word.
 - PRACTICE words: use them {targetMin} to {targetMax} times in total across the whole book (repeats count). Fewer is not enough practice; more makes the book too hard. Spread them out: about one per page, never more than two on a page. Most of every page should be KNOWN words. Pick the practice words that fit THIS story best (a bakery story should use "bake" and "cake", not "game").
 - Use each NEW HEART WORD at least 3 times.
 - Use each REVIEW word at least once.
@@ -19,7 +21,8 @@ Shape rules:
 - The title follows the same word rules.
 
 Grammar rules (just as important as the word rules):
-- Every sentence must be correct, natural English that a children's book editor would print. Never drop endings ("Max love soup"), use the wrong verb form ("the cup fall"), or leave out small words to dodge a word you can't use. If a word you want isn't allowed, rephrase the whole sentence another way.
+- Every sentence must be correct, natural English that a children's book editor would print. Never drop endings ("Max love soup"), use the wrong verb form ("the cup fall"), or leave out small words to dodge a word. If the natural sentence needs a word that isn't listed, use it as a preview word instead of writing an awkward sentence.
+- Read each page out loud in your head: it should sound like something a parent enjoys reading, with natural connections ("but", "so", "then") between ideas.
 - Capitalize the first word of every sentence and every name.
 - Stay in one point of view (usually third person: "Max ran," not "We ran").
 
@@ -137,8 +140,9 @@ export const DRAFT_SCHEMA = {
   },
 } as const;
 
-export const JUDGE_PROMPT = `You are a strict children's book editor. You review a short early-reader story whose vocabulary is deliberately limited (that is fine and expected: simple, repetitive words are OK).
-Flag ONLY real problems:
+export const JUDGE_PROMPT = `You are a strict children's book editor. You review a short early-reader story whose vocabulary is deliberately simple (that is fine and expected: simple, repetitive words are OK).
+The bar: would this read naturally next to good published early readers? Flag ONLY real problems:
+- stilted, robotic, or awkward phrasing; sentences that sound like they were built from a word list; choppy runs of disconnected statements with no flow
 - ungrammatical sentences (missing verb endings like "Max love soup", wrong verb forms like "the cup fall", missing articles, broken phrases)
 - sentences that don't make sense, or a story that doesn't hang together (events that come from nowhere, an ending that doesn't resolve the problem)
 - a story that ignores the requested idea (e.g. "afraid of the dark" never mentions darkness or fear)

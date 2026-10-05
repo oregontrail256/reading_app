@@ -180,7 +180,7 @@ struct SessionView: View {
                 }
                 Spacer()
                 if mode == .together {
-                    Text("Tap a word he misses. Tap again if he needed help. Hold to hear it.")
+                    Text("Tap a word to hear it. Grown-ups: press and hold a word he missed (hold again = needed help).")
                         .font(.callout).foregroundStyle(.secondary)
                 }
                 Spacer()
@@ -237,24 +237,27 @@ struct PageText: View {
             ForEach(ReadingUnits.build(tokens)) { u in
                 WordView(unit: u, mark: marks[u.id] ?? .none, showChunks: chunked == u.id, lexicon: model.lexicon)
                     .onTapGesture { tap(u) }
-                    .onLongPressGesture(minimumDuration: 0.4) { hear(u) }
+                    .onLongPressGesture(minimumDuration: 0.5) { parentMark(u) }
             }
         }
     }
 
+    /// A tap always reads the word aloud (and shows its sound chunks). It counts as asking for help,
+    /// unless a grown-up has already marked the word.
     private func tap(_ u: ReadingUnit) {
-        switch mode {
-        case .alone:
-            if u.cls != .story { marks[u.id] = .tapped }
-            hear(u)
-        case .together:
-            let next: WordMark = switch marks[u.id] ?? WordMark.none {
-            case .none, .tapped: .missed
-            case .missed: .helped
-            case .helped: .none
-            }
-            marks[u.id] = next
+        if u.cls != .story, (marks[u.id] ?? WordMark.none) == .none { marks[u.id] = .tapped }
+        hear(u)
+    }
+
+    /// Reading together: a grown-up presses and holds a word to mark it missed → needed help → clear.
+    private func parentMark(_ u: ReadingUnit) {
+        guard mode == .together, u.cls != .story else { return }
+        let next: WordMark = switch marks[u.id] ?? WordMark.none {
+        case .none, .tapped: .missed
+        case .missed: .helped
+        case .helped: .none
         }
+        marks[u.id] = next
     }
 
     private func hear(_ u: ReadingUnit) {

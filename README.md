@@ -88,7 +88,8 @@ Pick your team under Signing & Capabilities and run it on the iPad. To distribut
   3. The pages.
   4. Two spoken chat questions.
   5. He picks what happens next, which queues the next book in the series.
-- **Reading together** (default): tap a word he misses (red), tap again if he needed help (orange), hold to hear it. Unmarked words count as read correctly.
+- **Tap any word to hear it** (both modes): it is spoken and shown in sound chunks, and counts as "needed help" for that word.
+- **Reading together** (default): a grown-up presses and holds a word he missed (red); hold again for "needed help" (orange), again to clear. Unmarked words count as read correctly.
 - **Reading alone**: tapping a word shows its sound chunks (sh · i · p) and says it. Untapped words count only as weak evidence (weight 0.3), so mastery mostly comes from together-time until ASR lands.
 - **Grown-ups** shows:
   - per-pattern state, with tap-to-override

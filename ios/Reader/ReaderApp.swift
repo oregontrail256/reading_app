@@ -50,7 +50,7 @@ enum Theme {
 
     /// Andika (designed for beginning readers, single-story "a") if bundled, else SF Rounded.
     static func reading(_ size: CGFloat, bold: Bool = false) -> Font {
-        let name = bold ? "Andika-Bold" : "Andika-Regular"
+        let name = bold ? "Andika-Bold" : "Andika"  // PostScript names inside the .ttf files
         if UIFont(name: name, size: size) != nil { return .custom(name, size: size) }
         return .system(size: size, weight: bold ? .bold : .regular, design: .rounded)
     }

@@ -6,7 +6,7 @@ export const DEFAULT_THRESHOLDS: Thresholds = {
   minSupportedPct: 0.85,
   maxTargetPct: 0.15,
   minTargetTokens: 6,
-  maxStoryWords: 5,
+  maxStoryWords: 8,
   maxSentenceWords: 10,
   minSentencesPerPage: 3,
   maxSentencesPerPage: 4,

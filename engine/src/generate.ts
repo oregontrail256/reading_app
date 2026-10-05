@@ -48,8 +48,18 @@ export async function generateBook(o: GenerateOptions): Promise<Book> {
   for (let round = 0; round <= maxRepairs; round++) {
     rounds = round + 1;
     const t0 = Date.now();
-    const draft = sanitize(await writer.write(messages));
-    const report = validate(draft, spec, snap, lex);
+    let draft = sanitize(await writer.write(messages));
+    let report = validate(draft, spec, snap, lex);
+    // Hard words the writer forgot to list: pre-teach them instead of spending a rewrite on vocabulary,
+    // as long as the preview stays within budget.
+    if (report.violations.length) {
+      const names = nameSet(spec, draft);
+      const theme = report.storyWordsUsed.filter((w) => !names.has(w)).length;
+      if (theme + report.violations.length <= spec.thresholds.maxStoryWords) {
+        draft = { ...draft, previewWords: [...draft.previewWords, ...report.violations.map((v) => v.word.replace(/'s$/, ""))] };
+        report = validate(draft, spec, snap, lex);
+      }
+    }
     // Editorial review only once the words pass (and only if there are rounds left to fix things).
     if (report.pass && writer.review && !o.skipReview) {
       const rv = await writer.review(draft, req.prompt).catch((e) => (log(`review failed: ${e.message}`), { ok: true, issues: [] }));
