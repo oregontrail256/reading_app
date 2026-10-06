@@ -18,3 +18,5 @@ nap naps napped hug hugs hugged kick kicks kicked splash splashed swing swings d
 fast slow big small tall short red blue green yellow pink black white brown gold silver happy sad mad glad fun funny silly
 yum yummy wet dry hot cold soft loud quiet brave kind shy sleepy hungry
 bake bakes baked baking cave caves brave safe gate lake cape plate skate skates game games tape wave waves shake snake snakes cake cakes plane grape grapes rake whale whales race races face make made take came name same late gave
+# sound effects (the story prompt asks for ones he can sound out)
+bam zap pop thud bonk crash smash splash zip plop thump fizz crunch skid rip snap click smack clang clunk thwack splat whack zing ding honk hiss buzz plunk clap slam slap flop bump thunk clunk plink plunk swish swoosh crack whip whiz bop biff zonk

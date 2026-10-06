@@ -11,13 +11,14 @@ Write a story for a 7-year-old boy in the middle of first grade. He will read it
 
 - Make it a real little story: someone wants something, it goes wrong in a funny or exciting way (more than once), and they figure it out. End with a payoff or a joke. The requested idea is the heart of it from page one.
 - Make it fun to read out loud: dialogue, sound effects, repetition with a twist, a joke a 7-year-old boy will love.
+- Sound effects he can sound out himself: short, spelled-the-way-they-sound words like Bam! Zap! Pop! Thud! Bonk! Crash! Smash! Splash! Zip! Plop! Thump! Fizz! Crunch! Skid! Not ones with long vowels or odd spellings (WHOOSH, BOING, ZOOM, BOOM, KAPOW), and no stretched letters (Zzzip, Mooo).
 - Action, slapstick, battles, peril, monsters, and cartoon fighting are all fine.
 - Use the words of a first-grade early reader: mostly short, common words he can sound out or knows by sight. When the story needs a bigger word (ninja, toilet paper, rocket), use it. Don't use a fancy word where a plain one works.
 - Short sentences (at most {maxWords} words), {minSent} to {maxSent} sentences per page, about {minWords} to {maxWords2} words in all.
 - Third person ("Lincoln ran", not "I ran" or "we ran") and one tense throughout.
 - He is practicing a spelling pattern this week. Use a FEW of the PRACTICE words: about {targetMin} times in the whole book (repeats count), at most one per page, only where it is the word you'd pick anyway. Do not build the story around them or pick the plot to fit them. The NEW HEART WORD can appear a couple of times if it fits.
 - Use given characters' names and genders. Every human in the story has black hair, but don't mention hair in the text.
-- No romance, brands, or real public figures.
+- Characters and worlds he asks for from shows, games, and toys (Ninjago, Minecraft, Pokemon) are welcome; use them the way he'd expect. No romance or real public figures.
 
 Write exactly {pages} pages. Answer with the title on the first line, then one line per page: "1. ...", "2. ...". Nothing else.`;
 
