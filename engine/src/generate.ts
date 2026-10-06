@@ -6,7 +6,7 @@ import type { Message, Writer } from "./llm.ts";
 import { repairPrompt, systemPrompt, userPrompt } from "./prompt.ts";
 import { buildSpec, type SpecOptions } from "./spec.ts";
 import { tokenize } from "./tokenize.ts";
-import type { Book, BookRequest, DraftBook, LearnerSnapshot, LessonSpec, ValidationReport } from "./types.ts";
+import type { Book, BookRequest, DraftBook, LearnerSnapshot, LessonSpec, StoryPlan, ValidationReport } from "./types.ts";
 import { annotate, badness, nameSet, storySet, validate } from "./validate.ts";
 
 export interface GenerateOptions extends SpecOptions {
@@ -38,9 +38,18 @@ export async function generateBook(o: GenerateOptions): Promise<Book> {
   const writer = typeof o.writer === "function" ? o.writer(spec) : o.writer;
   log(`targets: ${spec.targets.join(", ") || "(none)"}; heart: ${spec.newHeartWords.join(", ") || "-"}; ${spec.allowedWords.length} known words`);
 
+  // Plan the story first, free of vocabulary rules, so the plot is decided by thinking about the story alone.
+  let plan: StoryPlan | undefined;
+  if (writer.plan) {
+    const t0 = Date.now();
+    plan = await writer.plan(spec, req).catch((e) => (log(`plan failed, writing without one: ${e.message}`), undefined));
+    if (plan && plan.beats.length !== spec.pages) log(`plan has ${plan.beats.length} beats for ${spec.pages} pages`);
+    if (plan) log(`plan: ${plan.lesson} (${((Date.now() - t0) / 1000).toFixed(1)}s)`);
+  }
+
   const messages: Message[] = [
     { role: "system", content: systemPrompt(spec) },
-    { role: "user", content: userPrompt(spec, req, lex) },
+    { role: "user", content: userPrompt(spec, req, lex, plan) },
   ];
   let best: { draft: DraftBook; report: ValidationReport } | null = null;
   const maxRepairs = o.maxRepairs ?? 3;
@@ -60,8 +69,9 @@ export async function generateBook(o: GenerateOptions): Promise<Book> {
         report = validate(draft, spec, snap, lex);
       }
     }
-    // Editorial review only once the words pass (and only if there are rounds left to fix things).
-    if (report.pass && writer.review && !o.skipReview) {
+    // Editorial review on every draft: story problems get fixed in the same rewrite as word problems,
+    // and the best-draft pick below can see them.
+    if (writer.review && !o.skipReview) {
       const rv = await writer.review(draft, req.prompt).catch((e) => (log(`review failed: ${e.message}`), { ok: true, issues: [] }));
       if (!rv.ok && rv.issues.length) {
         report.pass = false;
@@ -69,7 +79,7 @@ export async function generateBook(o: GenerateOptions): Promise<Book> {
       }
     }
     log(`round ${round + 1}: ${report.pass ? "PASS" : report.problems.join("; ")} (${((Date.now() - t0) / 1000).toFixed(1)}s)`);
-    if (!best || badness(report) < badness(best.report)) best = { draft, report };
+    if (!best || score(report) < score(best.report)) best = { draft, report };
     if (report.pass) break;
     messages.push({ role: "assistant", content: JSON.stringify(draft) });
     messages.push({ role: "user", content: repairPrompt(draft, report, spec) });
@@ -115,6 +125,7 @@ export async function generateBook(o: GenerateOptions): Promise<Book> {
     validation: report,
     rounds,
     model: writer.name,
+    plan,
   };
   delete (book.spec as any).allowedWords;
 
@@ -131,6 +142,12 @@ export async function generateBook(o: GenerateOptions): Promise<Book> {
     log(`images: ${images.filter(Boolean).length}/${images.length} in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
   }
   return book;
+}
+
+/** Which draft to keep: a story that makes sense matters more than word-rule misses (those become preview words). */
+function score(r: ValidationReport): number {
+  const editor = r.problems.filter((p) => p.startsWith("editor:")).length;
+  return badness(r) + editor * 15;
 }
 
 function sanitize(d: DraftBook): DraftBook {

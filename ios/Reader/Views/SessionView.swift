@@ -46,6 +46,7 @@ struct SessionView: View {
     // MARK: Flow
 
     private func start() {
+        _ = Speech.shared  // load the voice now so the first tapped word speaks without a lag
         mode = model.settings.readingMode
         firstRead = book.finishedAt == nil
         if let lex = model.lexicon {
@@ -179,10 +180,8 @@ struct SessionView: View {
                     arrow("arrow.left") { go(.page(i - 1)) }
                 }
                 Spacer()
-                if mode == .together {
-                    Text("Tap a word to hear it. Grown-ups: press and hold a word he missed (hold again = needed help).")
-                        .font(.callout).foregroundStyle(.secondary)
-                }
+                Text("Tap a tricky word to hear it. Tap it again to clear it.")
+                    .font(.callout).foregroundStyle(.secondary)
                 Spacer()
                 arrow(i + 1 < book.pages.count ? "arrow.right" : "checkmark") {
                     go(i + 1 < book.pages.count ? .page(i + 1) : .chat)
@@ -220,11 +219,13 @@ struct SessionView: View {
 
 @MainActor
 struct PageText: View {
-    @Environment(AppModel.self) private var model
     let tokens: [Token]
     let mode: ReadingMode
     @Binding var marks: [Int: WordMark]
-    @State private var chunked: Int?
+
+    /// Gaps between words. Each word's tap area extends halfway into them, so there are no dead zones.
+    private static let gap: CGFloat = 16
+    private static let lineGap: CGFloat = 22
 
     init(tokens: [Token], mode: ReadingMode, marks: Binding<[Int: WordMark]>) {
         self.tokens = tokens
@@ -233,40 +234,27 @@ struct PageText: View {
     }
 
     var body: some View {
-        FlowLayout(spacing: 16, lineSpacing: 22) {
+        FlowLayout(spacing: 0, lineSpacing: 0) {
             ForEach(ReadingUnits.build(tokens)) { u in
-                WordView(unit: u, mark: marks[u.id] ?? .none, showChunks: chunked == u.id, lexicon: model.lexicon)
+                WordView(unit: u, mark: marks[u.id] ?? .none)
+                    .padding(.horizontal, Self.gap / 2)
+                    .padding(.vertical, Self.lineGap / 2)
+                    .contentShape(Rectangle())
                     .onTapGesture { tap(u) }
-                    .onLongPressGesture(minimumDuration: 0.5) { parentMark(u) }
             }
         }
     }
 
-    /// A tap always reads the word aloud (and shows its sound chunks). It counts as asking for help,
-    /// unless a grown-up has already marked the word.
+    /// Tap an unmarked word: say it at once and mark it as a word he needed help with (highlighted).
+    /// Tap a marked word: clear the mark, silently. Names and theme words are pre-taught and never marked;
+    /// tapping them just says them.
     private func tap(_ u: ReadingUnit) {
-        if u.cls != .story, (marks[u.id] ?? WordMark.none) == .none { marks[u.id] = .tapped }
-        hear(u)
-    }
-
-    /// Reading together: a grown-up presses and holds a word to mark it missed → needed help → clear.
-    private func parentMark(_ u: ReadingUnit) {
-        guard mode == .together, u.cls != .story else { return }
-        let next: WordMark = switch marks[u.id] ?? WordMark.none {
-        case .none, .tapped: .missed
-        case .missed: .helped
-        case .helped: .none
-        }
-        marks[u.id] = next
-    }
-
-    private func hear(_ u: ReadingUnit) {
-        chunked = u.id
-        Speech.shared.word(u.word)
-        let id = u.id
-        Task { @MainActor in
-            try? await Task.sleep(for: .seconds(1.8))
-            if chunked == id { chunked = nil }
+        guard u.cls != .story else { Speech.shared.word(u.word); return }
+        if (marks[u.id] ?? WordMark.none) != .none {
+            marks[u.id] = WordMark.none
+        } else {
+            Speech.shared.word(u.word)
+            marks[u.id] = .tapped
         }
     }
 }
@@ -274,38 +262,22 @@ struct PageText: View {
 struct WordView: View {
     let unit: ReadingUnit
     let mark: WordMark
-    let showChunks: Bool
-    let lexicon: Lexicon?
 
     var body: some View {
-        HStack(spacing: 0) {
-            if !unit.prefix.isEmpty { Text(unit.prefix) }
-            if showChunks, let lexicon {
-                ChunkedWord(word: unit.word, lexicon: lexicon)
-            } else {
-                Text(unit.word)
-            }
-            if !unit.suffix.isEmpty { Text(unit.suffix) }
-        }
-        .font(Theme.reading(40))
-        .padding(.horizontal, 6)
-        .padding(.vertical, 2)
-        .background(background, in: RoundedRectangle(cornerRadius: 10))
-        .overlay(alignment: .bottom) {
-            if mark == .missed || mark == .helped {
-                Rectangle().fill(mark == .missed ? Theme.missed : Theme.helped).frame(height: 5).offset(y: 4)
-            }
-        }
-        .contentShape(Rectangle())
-        .animation(.easeOut(duration: 0.15), value: showChunks)
+        Text(unit.prefix + unit.word + unit.suffix)
+            .font(Theme.reading(40))
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(background, in: RoundedRectangle(cornerRadius: 10))
+            .animation(.easeOut(duration: 0.1), value: mark)
     }
 
     private var background: Color {
         switch mark {
-        case .missed: return Theme.missed.opacity(0.15)
-        case .helped: return Theme.helped.opacity(0.18)
-        case .tapped: return Theme.tapped.opacity(0.18)
         case .none: return .clear
+        case .missed: return Theme.missed.opacity(0.3)
+        case .helped: return Theme.helped.opacity(0.35)
+        case .tapped: return Theme.tapped.opacity(0.4)
         }
     }
 }

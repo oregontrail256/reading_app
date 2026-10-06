@@ -207,3 +207,26 @@ test("server: async job submit and poll", async () => {
   assert.equal((await app.request(`/v1/jobs/nope`, { headers: h })).status, 404);
   assert.equal((await app.request(`/v1/jobs/${id}`)).status, 401);
 });
+
+test("generate: story plan is written first and handed to the writer", async () => {
+  let seen = "";
+  const book = await generateBook({
+    lex,
+    snapshot: snap,
+    request: { prompt: "a shark who runs a bakery" },
+    writer: (spec) => {
+      const m = new MockWriter(spec) as MockWriter & { plan: Writer["plan"] };
+      const write = m.write.bind(m);
+      m.write = async (msgs) => ((seen = msgs[1].content), write(msgs));
+      m.plan = async () => ({
+        hero: "Max, a small shark", want: "to bake the biggest cake", problem: "his cakes keep falling",
+        lesson: "Asking for help is not giving up.", tries: [{ attempt: "taller", result: "falls" }],
+        lowPoint: "flat cake", turn: "asks the crab", resolution: "they build it together", ending: "crab eats the top",
+        runningGag: "", beats: Array.from({ length: spec.pages }, (_, i) => `beat ${i + 1}`),
+      });
+      return m;
+    },
+  });
+  assert.ok(seen.includes("STORY PLAN") && seen.includes("Page 10: beat 10"), seen.slice(0, 300));
+  assert.equal(book.plan?.lesson, "Asking for help is not giving up.");
+});

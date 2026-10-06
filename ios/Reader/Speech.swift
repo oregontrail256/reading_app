@@ -13,6 +13,15 @@ final class Speech {
 
     private init() {
         try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
+        prewarm()
+    }
+
+    /// The first utterance pays to load the voice; do that up front so the first tapped word speaks at once.
+    func prewarm() {
+        let u = AVSpeechUtterance(string: " ")
+        u.voice = voice
+        u.volume = 0
+        synth.speak(u)
     }
 
     func say(_ text: String, slow: Bool = false) {
@@ -20,7 +29,6 @@ final class Speech {
         let u = AVSpeechUtterance(string: text)
         u.voice = voice
         u.rate = slow ? 0.36 : 0.45
-        u.preUtteranceDelay = 0.05
         synth.speak(u)
     }
 

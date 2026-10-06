@@ -1,5 +1,5 @@
-import { DRAFT_SCHEMA, JUDGE_PROMPT, JUDGE_SCHEMA, judgeInput } from "./prompt.ts";
-import type { DraftBook, LessonSpec } from "./types.ts";
+import { DRAFT_SCHEMA, JUDGE_PROMPT, JUDGE_SCHEMA, judgeInput, PLAN_PROMPT, PLAN_SCHEMA, planInput } from "./prompt.ts";
+import type { BookRequest, DraftBook, LessonSpec, StoryPlan } from "./types.ts";
 
 export interface Message {
   role: "system" | "user" | "assistant";
@@ -16,6 +16,8 @@ export interface Writer {
   write(messages: Message[]): Promise<DraftBook>;
   /** Optional editorial review (grammar, coherence). Absent = always ok. */
   review?(draft: DraftBook, idea: string): Promise<Review>;
+  /** Optional story outline, written before the vocabulary-constrained draft. Absent = no plan. */
+  plan?(spec: LessonSpec, req: BookRequest): Promise<StoryPlan>;
 }
 
 export class OpenAIWriter implements Writer {
@@ -25,6 +27,8 @@ export class OpenAIWriter implements Writer {
     model = process.env.OPENAI_MODEL ?? "gpt-5",
     private baseURL = process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1",
     private reasoningEffort = process.env.OPENAI_REASONING_EFFORT ?? "low",
+    /** Planning and editorial review are where story quality is decided, so they think harder. */
+    private storyEffort = process.env.OPENAI_STORY_EFFORT ?? "medium",
   ) {
     if (!apiKey) throw new Error("OPENAI_API_KEY is not set");
     this.name = model;
@@ -34,6 +38,17 @@ export class OpenAIWriter implements Writer {
     return this.chat<DraftBook>(messages, DRAFT_SCHEMA);
   }
 
+  async plan(spec: LessonSpec, req: BookRequest): Promise<StoryPlan> {
+    return this.chat<StoryPlan>(
+      [
+        { role: "system", content: PLAN_PROMPT },
+        { role: "user", content: planInput(spec, req) },
+      ],
+      PLAN_SCHEMA,
+      this.storyEffort,
+    );
+  }
+
   async review(draft: DraftBook, idea: string): Promise<Review> {
     return this.chat<Review>(
       [
@@ -41,16 +56,17 @@ export class OpenAIWriter implements Writer {
         { role: "user", content: judgeInput(draft, idea) },
       ],
       JUDGE_SCHEMA,
+      this.storyEffort,
     );
   }
 
-  private async chat<T>(messages: Message[], schema: object): Promise<T> {
+  private async chat<T>(messages: Message[], schema: object, effort = this.reasoningEffort): Promise<T> {
     const body: Record<string, unknown> = {
       model: this.name,
       messages,
       response_format: { type: "json_schema", json_schema: schema },
     };
-    if (this.reasoningEffort && this.reasoningEffort !== "none") body.reasoning_effort = this.reasoningEffort;
+    if (effort && effort !== "none") body.reasoning_effort = effort;
     const res = await fetchWithRetry(`${this.baseURL}/chat/completions`, {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${this.apiKey}` },
