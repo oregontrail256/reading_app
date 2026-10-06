@@ -57,12 +57,37 @@ final class LearnerModelTests: XCTestCase {
         XCTAssertEqual(s.patternState("vce_a"), .learning)
     }
 
-    func testMissOnMasteredPatternIsDownweighted() {
+    func testMissOnDecodableWordIsDownweightedForMasteredPatterns() {
         var s = placed()
-        s.record(ReadEvent(word: "cake", outcome: .incorrect, source: .parent, date: t0), lexicon: lex)
-        let shortA = s.patterns["consonants"]!.history.last!
-        XCTAssertEqual(shortA.weight, 0.3, accuracy: 1e-9)
+        s.record(ReadEvent(word: "cat", outcome: .incorrect, source: .parent, date: t0), lexicon: lex)
+        XCTAssertEqual(s.patterns["short_a"]!.history.last!.weight, 0.3, accuracy: 1e-9)
+    }
+
+    func testMissOnWordWithUnlearnedPatternOnlyHitsThatPattern() {
+        var s = placed()
+        let before = s.patterns["short_a"]!.history.count
+        // "cake": he hasn't learned silent e, so tapping it must not count against short a or consonants.
+        for i in 0..<10 {
+            s.record(ReadEvent(word: "cake", outcome: .tapped, hintLevel: 4, source: .parent, date: t0 + Double(i) * 60), lexicon: lex)
+        }
+        XCTAssertEqual(s.patterns["short_a"]!.history.count, before)
+        XCTAssertEqual(s.patternState("short_a"), .mastered)
+        XCTAssertEqual(s.patternState("consonants"), .mastered)
         XCTAssertEqual(s.patterns["vce_a"]!.history.last!.weight, 1.0, accuracy: 1e-9)
+    }
+
+    func testRebuildReplaysTheLogUnderCurrentRules() {
+        var s = placed()
+        s.override(pattern: "vce_i", to: .reviewing, now: t0)
+        s.bookAccuracy = [0.97]
+        let log = (0..<10).map { ReadEvent(word: "cake", outcome: .tapped, hintLevel: 4, source: .parent, date: t0 + Double($0) * 60) }
+        let r = s.rebuilt(events: log, lexicon: lex)
+        XCTAssertEqual(r.rulesVersion, LearnerState.currentRulesVersion)
+        XCTAssertEqual(r.placedThrough, "suffix_ed")
+        XCTAssertEqual(r.patternState("short_a"), .mastered)
+        XCTAssertEqual(r.patternState("vce_a"), .learning)
+        XCTAssertEqual(r.patternState("vce_i"), .reviewing, "parent overrides carry over")
+        XCTAssertEqual(r.bookAccuracy, [0.97])
     }
 
     func testFailedReviewDemotes() {

@@ -72,6 +72,10 @@ public struct LearnerState: Codable, Sendable {
     public var bookAccuracy: [Double] = []
     public var placedThrough: String?
     public var targetOverride: [String]?
+    /// Version of the update rules this state was computed with (nil = before versioning).
+    public var rulesVersion: Int?
+    /// Bump when `record` changes in a way that should be re-applied to past reading.
+    public static let currentRulesVersion = 2
     public var rules = MasteryRules()
 
     public init() {}
@@ -103,6 +107,22 @@ public struct LearnerState: Codable, Sendable {
             words[w] = item
             n += 1
         }
+    }
+
+    /// The same learner recomputed under the current rules: placement, then every logged read in order.
+    /// Parent overrides, book accuracies, and the target override carry over.
+    public func rebuilt(events: [ReadEvent], lexicon: Lexicon) -> LearnerState {
+        var s = LearnerState()
+        s.rules = rules
+        s.bookAccuracy = bookAccuracy
+        s.targetOverride = targetOverride
+        let ordered = events.sorted { $0.date < $1.date }
+        if let p = placedThrough { s.place(through: p, lexicon: lexicon, now: ordered.first?.date ?? Date()) }
+        s.record(ordered, lexicon: lexicon)
+        for (id, item) in patterns where item.overridden { s.patterns[id] = item }
+        for (w, item) in words where item.overridden { s.words[w] = item }
+        s.rulesVersion = LearnerState.currentRulesVersion
+        return s
     }
 
     // MARK: Queries
@@ -159,7 +179,11 @@ public struct LearnerState: Codable, Sendable {
 
         guard let e = lexicon.words[w], !e.h else { return }  // heart words: whole-word item only
         let failed = exposure.credit < rules.unaidedCredit
+        // A word that uses a pattern he hasn't learned (toilet, rocket) is expected to need help: a miss on
+        // it says nothing about the patterns he already knows, so only the unlearned ones take the miss.
+        let unlearned = Set(e.p.filter { !patternState($0).isKnown })
         for pid in Set(e.p) {
+            if failed && !unlearned.isEmpty && !unlearned.contains(pid) { continue }
             var pi = patterns[pid] ?? ItemProgress()
             var x = exposure
             if failed && pi.state == .mastered { x.weight *= rules.masteredMissWeight }

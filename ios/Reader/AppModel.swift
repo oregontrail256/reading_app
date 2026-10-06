@@ -81,7 +81,18 @@ final class AppModel {
             }.value
         } catch {
             loadError = "Couldn't load the word list: \(error.localizedDescription)"
+            return
         }
+        updateLearnerRules()
+    }
+
+    /// When the learner update rules change, recompute his progress from placement plus the reading log,
+    /// keeping a copy of the old state (learner-v<n>.json) in case it needs to be restored.
+    private func updateLearnerRules() {
+        guard let lexicon, learner.rulesVersion != LearnerState.currentRulesVersion else { return }
+        try? store.save(learner, "learner-v\(learner.rulesVersion ?? 1).json")
+        learner = learner.rebuilt(events: store.loadEvents(), lexicon: lexicon)
+        saveLearner()
     }
 
     // MARK: Learner
