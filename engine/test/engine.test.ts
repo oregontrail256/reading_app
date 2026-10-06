@@ -7,7 +7,7 @@ import { MockWriter, type Writer } from "../src/llm.ts";
 import { buildSpec, chooseTargets } from "../src/spec.ts";
 import { sentences, tokenize } from "../src/tokenize.ts";
 import type { DraftBook } from "../src/types.ts";
-import { classifyWord, validate } from "../src/validate.ts";
+import { classifyWord, isFancy, validate } from "../src/validate.ts";
 
 const lex = lexicon();
 const snap = snapshotFromPlacement(lex, "suffix_ed"); // mastered through -ed; next up is silent-e
@@ -82,11 +82,11 @@ test("validator flags hard words, long sentences, and missing practice", () => {
   const r = validate(draft, spec, snap, lex);
   assert.equal(r.pass, false);
   assert.ok(r.violations.some((v) => v.word === "rain"));
-  assert.ok(r.problems.some((p) => p.includes("has 20 words; max 10")));
+  assert.ok(r.problems.some((p) => p.includes("has 20 words; max 12")));
   assert.ok(r.problems.some((p) => p.includes("Silent e: a_e") && p.includes("appears 0 times")));
 });
 
-test("generate: hard words the writer forgot to list are pre-taught, not rewritten", async () => {
+test("generate: hard words the writer didn't list stay in as tap-to-hear stretch words, not rewritten", async () => {
   const logs: string[] = [];
   const book = await generateBook({
     lex,
@@ -96,15 +96,16 @@ test("generate: hard words the writer forgot to list are pre-taught, not rewritt
     log: (m) => logs.push(m),
   });
   assert.equal(book.rounds, 1);
-  assert.ok(book.previewWords.includes("enormous"), `preview: ${book.previewWords}`);
+  assert.ok(!book.previewWords.includes("enormous"), `preview: ${book.previewWords}`);
+  assert.ok(book.pages.some((p) => p.tokens.some((t) => t.w === "enormous" && t.k === "unknown")));
   assert.ok(book.validation.pass);
   assert.equal(book.pages.length, 10);
   assert.ok(book.pages[0].tokens.some((t) => t.k === "target"));
   assert.ok(!("allowedWords" in book.spec));
-  assert.ok(logs[1].includes("PASS"));
+  assert.ok(logs.some((l) => l.startsWith("round 1: PASS")), logs.join("\n"));
 });
 
-test("generate: never fails over vocabulary; hard words become preview stretch words", async () => {
+test("generate: never fails over vocabulary", async () => {
   const stubborn: Writer = {
     name: "stubborn",
     async write() {
@@ -122,8 +123,7 @@ test("generate: never fails over vocabulary; hard words become preview stretch w
   };
   const book = await generateBook({ lex, snapshot: snap, request: { prompt: "x" }, writer: stubborn, maxRepairs: 1 });
   assert.ok(book.validation.pass);
-  assert.ok(book.previewWords.includes("rain"), `preview: ${book.previewWords}`);
-  assert.ok(book.pages[0].tokens.find((t) => t.w === "rain")?.k === "story");
+  assert.ok(book.pages[0].tokens.find((t) => t.w === "rain")?.k === "unknown");
   assert.ok((book.validation.warnings ?? []).length > 0, "shape shortfalls are kept as warnings");
 });
 
@@ -132,7 +132,7 @@ test("generate: an empty draft still fails", async () => {
   await assert.rejects(generateBook({ lex, snapshot: snap, request: { prompt: "x" }, writer: empty, maxRepairs: 0 }), (e: unknown) => e instanceof GenerationFailed);
 });
 
-test("validator: grammar-ish checks and theme-word budget ignores names", () => {
+test("validator: grammar-ish checks; no preview-word cap", () => {
   const spec = buildSpec(lex, snap, { prompt: "x", pages: 2 }, { thresholds: { maxStoryWords: 3 } });
   const draft: DraftBook = {
     title: "Zork",
@@ -147,7 +147,25 @@ test("validator: grammar-ish checks and theme-word budget ignores names", () => 
   const r = validate(draft, spec, snap, lex);
   assert.ok(r.problems.some((p) => p.includes('write the name "Zork" with a capital')));
   assert.ok(r.problems.some((p) => p.includes("must start with a capital")));
-  assert.ok(r.problems.some((p) => p.includes("6 preview words") && !p.includes("zork")));
+  assert.ok(!r.problems.some((p) => p.includes("preview words")));
+});
+
+test("generate: the preview page keeps names plus the first maxStoryWords hard key words", async () => {
+  const writer: Writer = {
+    name: "listy",
+    async write() {
+      return {
+        title: "Zork",
+        characters: [{ name: "Zork", description: "a robot" }],
+        previewWords: ["Zork", "bakery", "the", "dinosaur", "octopus", "jungle", "spider"],
+        pages: [{ text: "Zork had a bakery. The dinosaur sat. An octopus came to the jungle. A spider sat.", scene: "" }],
+        coverScene: "", summary: "", chatQuestions: [], nextOptions: [],
+      };
+    },
+  };
+  const book = await generateBook({ lex, snapshot: snap, request: { prompt: "x", pages: 1 }, writer, maxRepairs: 0, thresholds: { maxStoryWords: 3 } });
+  assert.deepEqual(book.previewWords, ["Zork", "bakery", "dinosaur", "octopus"]);
+  assert.equal(book.pages[0].tokens.find((t) => t.w === "jungle")?.k, "unknown");
 });
 
 test("generate: editor review feeds the repair loop", async () => {
@@ -229,4 +247,9 @@ test("generate: story plan is written first and handed to the writer", async () 
   });
   assert.ok(seen.includes("STORY PLAN") && seen.includes("Page 10: beat 10"), seen.slice(0, 300));
   assert.equal(book.plan?.lesson, "Asking for help is not giving up.");
+});
+
+test("fancy words: inflected everyday words are plain, rare ones are fancy", () => {
+  for (const w of ["smiled", "laughed", "taller", "tapped", "rolled", "tied", "park", "slow"]) assert.ok(!isFancy(w, lex), w);
+  for (const w of ["slumped", "scooted", "tumbled"]) assert.ok(isFancy(w, lex), w);
 });

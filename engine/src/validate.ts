@@ -68,6 +68,34 @@ export function storySet(spec: LessonSpec, draft: DraftBook): Set<string> {
   return s;
 }
 
+/**
+ * Rank in the (adult-text) frequency list past which an undecodable word counts as fancy. Kept loose on
+ * purpose: kid words like "balloon" rank low in adult text, so this is only a backstop for the prompt
+ * and the editor, which judge plain vs. fancy better.
+ */
+const FANCY_RANK = 6000;
+const MAX_FANCY_WORDS = 6;
+
+/** The word and the base forms it may be inflected from (smiled -> smile, taller -> tall, tapped -> tap). */
+function baseForms(w: string): string[] {
+  const out = [w];
+  for (const suf of ["ed", "ing", "er", "est", "es", "s"]) {
+    if (!w.endsWith(suf) || w.length - suf.length < 2) continue;
+    const stem = w.slice(0, -suf.length);
+    out.push(stem, stem + "e");
+    if (stem.length > 2 && stem.at(-1) === stem.at(-2)) out.push(stem.slice(0, -1));
+    if (stem.endsWith("i")) out.push(stem.slice(0, -1) + "y");
+  }
+  return out;
+}
+
+export function isFancy(word: string, lex: Lexicon): boolean {
+  return !baseForms(word.replace(/'s$/, "")).some((f) => {
+    const e = lex.get(f);
+    return e && (e.k || e.r <= FANCY_RANK);
+  });
+}
+
 export function validate(draft: DraftBook, spec: LessonSpec, snap: LearnerSnapshot, lex: Lexicon): ValidationReport {
   const story = storySet(spec, draft);
   const names = nameSet(spec, draft);
@@ -99,15 +127,20 @@ export function validate(draft: DraftBook, spec: LessonSpec, snap: LearnerSnapsh
 
   const total = Object.values(counts).reduce((a, b) => a + b, 0) || 1;
   // Known, pre-taught preview words, and the new heart word (taught in the preview) are all "supported".
-  // Practice words are capped separately, and unknown words must be zero, so this mostly guards the mix.
   const supportedPct = (counts.known + counts.story + counts.heart) / total;
   const targetPct = counts.target / total;
   const violations = [...bad.values()].sort((a, b) => b.count - a.count);
   const th = spec.thresholds;
 
-  if (violations.length) problems.push(`${violations.length} word(s) he can't read yet`);
-  if (supportedPct < th.minSupportedPct && targetPct <= th.maxTargetPct)
-    problems.push(`only ${(supportedPct * 100).toFixed(0)}% of words are known or pre-taught; need at least ${(th.minSupportedPct * 100).toFixed(0)}% (use fewer practice words)`);
+  // Words he can't decode yet are allowed: they become stretch words (pre-taught or tap-to-hear).
+  // Common words (park, tree, slow) are fine even if he can't decode them yet. Fancy ones where a plain
+  // word would do (slumped, crooked, tumbled) are a soft problem: it steers rewrites and the best-draft
+  // pick, and never rejects a book.
+  const fancy = violations.filter((v) => !story.has(v.word) && isFancy(v.word, lex)).map((v) => v.word);
+  if (fancy.length > MAX_FANCY_WORDS)
+    problems.push(
+      `words harder than a first grader needs: ${fancy.slice(0, 12).join(", ")}. Use a plain, common word where one works ("sat down" for "slumped"); keep hard words the story really needs`,
+    );
   if (targetPct > th.maxTargetPct)
   {
     const cap = Math.floor(total * th.maxTargetPct);
@@ -128,9 +161,6 @@ export function validate(draft: DraftBook, spec: LessonSpec, snap: LearnerSnapsh
     if ((targetCounts[t] ?? 0) < th.minTargetTokens)
       problems.push(`practice pattern "${lex.patternById.get(t)?.name ?? t}" appears ${targetCounts[t] ?? 0} times; use it at least ${th.minTargetTokens} times`);
   }
-  const themeUsed = [...storyUsed].filter((w) => !names.has(w));
-  if (themeUsed.length > th.maxStoryWords)
-    problems.push(`${themeUsed.length} preview words (${themeUsed.join(", ")}); allow at most ${th.maxStoryWords} besides character names. Swap the least important ones for known words, keeping sentences natural`);
   if (draft.pages.length !== spec.pages) problems.push(`has ${draft.pages.length} pages; need exactly ${spec.pages}`);
   if (total < spec.wordBudget[0] || total > spec.wordBudget[1])
     problems.push(`has ${total} words; aim for ${spec.wordBudget[0]}-${spec.wordBudget[1]}`);
@@ -168,5 +198,5 @@ export function validate(draft: DraftBook, spec: LessonSpec, snap: LearnerSnapsh
 
 /** A single score for picking the best of several failed attempts (lower is better). */
 export function badness(r: ValidationReport): number {
-  return r.violations.reduce((a, v) => a + v.count, 0) * 10 + r.problems.length;
+  return r.problems.length;
 }

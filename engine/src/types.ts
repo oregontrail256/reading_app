@@ -39,13 +39,13 @@ export interface BookRequest {
 }
 
 export interface Thresholds {
-  /** Share of tokens that must be known words or pre-taught story words. */
+  /** Share of tokens that must be known words or pre-taught story words. Reported only; not enforced. */
   minSupportedPct: number;
   /** Max share of tokens that are target-pattern words. */
   maxTargetPct: number;
   /** Min occurrences (tokens) of each target pattern. */
   minTargetTokens: number;
-  /** Max distinct pre-taught story words (names, theme words). */
+  /** Most words shown on the "Words to know" page, besides character names. */
   maxStoryWords: number;
   maxSentenceWords: number;
   minSentencesPerPage: number;

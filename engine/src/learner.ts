@@ -1,4 +1,5 @@
 import type { Lexicon, LexEntry } from "./lexicon.ts";
+import { SIGHT_WORDS } from "./sightWords.ts";
 import type { ItemState, LearnerSnapshot } from "./types.ts";
 
 const KNOWN: ItemState[] = ["mastered", "reviewing"];
@@ -13,7 +14,9 @@ export function wordState(snap: LearnerSnapshot, word: string): ItemState {
 
 /** Can he read this word without new teaching? */
 export function wordKnown(snap: LearnerSnapshot, word: string, entry: LexEntry | undefined): boolean {
-  if (KNOWN.includes(wordState(snap, word))) return true;
+  const state = wordState(snap, word);
+  if (KNOWN.includes(state)) return true;
+  if (SIGHT_WORDS.has(word) && state !== "learning") return true;
   if (!entry || entry.h) return false;
   return entry.p.every((p) => patternKnown(snap, p));
 }

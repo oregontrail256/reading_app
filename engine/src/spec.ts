@@ -3,12 +3,12 @@ import { patternKnown, unknownPatterns, wordKnown } from "./learner.ts";
 import type { BookRequest, LearnerSnapshot, LessonSpec, Thresholds } from "./types.ts";
 
 export const DEFAULT_THRESHOLDS: Thresholds = {
-  minSupportedPct: 0.85,
+  minSupportedPct: 0, // reported only; fancy words are steered instead (validate.ts)
   maxTargetPct: 0.15,
   minTargetTokens: 6,
   maxStoryWords: 8,
-  maxSentenceWords: 10,
-  minSentencesPerPage: 3,
+  maxSentenceWords: 12,
+  minSentencesPerPage: 2,
   maxSentencesPerPage: 4,
 };
 
@@ -29,6 +29,7 @@ export function wordsForTarget(lex: Lexicon, snap: LearnerSnapshot, pattern: str
     const e = lex.get(w)!;
     if (e.r > MAX_RANK_FOR_WRITING && !e.k) continue;
     if (e.h || w.includes("'") || !e.p.includes(pattern)) continue;
+    if (wordKnown(snap, w, e)) continue; // already a sight word (make, came, like): no decoding practice
     const unk = unknownPatterns(snap, e);
     if (unk.length === 1 && unk[0] === pattern) out.push(w);
   }

@@ -57,18 +57,8 @@ export async function generateBook(o: GenerateOptions): Promise<Book> {
   for (let round = 0; round <= maxRepairs; round++) {
     rounds = round + 1;
     const t0 = Date.now();
-    let draft = sanitize(await writer.write(messages));
-    let report = validate(draft, spec, snap, lex);
-    // Hard words the writer forgot to list: pre-teach them instead of spending a rewrite on vocabulary,
-    // as long as the preview stays within budget.
-    if (report.violations.length) {
-      const names = nameSet(spec, draft);
-      const theme = report.storyWordsUsed.filter((w) => !names.has(w)).length;
-      if (theme + report.violations.length <= spec.thresholds.maxStoryWords) {
-        draft = { ...draft, previewWords: [...draft.previewWords, ...report.violations.map((v) => v.word.replace(/'s$/, ""))] };
-        report = validate(draft, spec, snap, lex);
-      }
-    }
+    const draft = sanitize(await writer.write(messages));
+    const report = validate(draft, spec, snap, lex);
     // Editorial review on every draft: story problems get fixed in the same rewrite as word problems,
     // and the best-draft pick below can see them.
     if (writer.review && !o.skipReview) {
@@ -79,30 +69,27 @@ export async function generateBook(o: GenerateOptions): Promise<Book> {
       }
     }
     log(`round ${round + 1}: ${report.pass ? "PASS" : report.problems.join("; ")} (${((Date.now() - t0) / 1000).toFixed(1)}s)`);
-    if (!best || score(report) < score(best.report)) best = { draft, report };
+    // Ties go to the later draft: it already has the earlier editor notes worked in.
+    if (!best || score(report) <= score(best.report)) best = { draft, report };
     if (report.pass) break;
     messages.push({ role: "assistant", content: JSON.stringify(draft) });
     messages.push({ role: "user", content: repairPrompt(draft, report, spec) });
   }
 
   let { draft, report } = best!;
-  if (!report.pass) {
-    // Never fail a book over vocabulary. Any words he can't decode yet become "stretch words":
-    // pre-taught on the preview page (read to him first) and not counted against him while reading.
-    if (report.violations.length) {
-      const extra = report.violations.map((v) => v.word.replace(/'s$/, "")).filter((w) => !draft.previewWords.map((x) => x.toLowerCase()).includes(w));
-      draft = { ...draft, previewWords: [...draft.previewWords, ...extra] };
-      const before = report.problems.filter((p) => p.startsWith("editor:"));
-      report = validate(draft, spec, snap, lex);
-      report.problems.push(...before);
-      log(`stretch words added to preview: ${extra.join(", ")}`);
-    }
-    // Whatever is left (too many preview words, length, practice-word mix, editor notes) is a quality
-    // shortfall, not a reason to give him nothing. Ship the best draft and keep the notes.
-    if (!report.pass && draft.pages.some((p) => p.text.trim())) {
-      log(`accepting best draft with notes: ${report.problems.join("; ")}`);
-      report = { ...report, pass: true, warnings: report.problems, problems: [] };
-    }
+  // The "Words to know" page: the writer's key words he can't decode yet, at most maxStoryWords
+  // besides names. Other hard words stay in the text as stretch words (tap to hear).
+  draft = { ...draft, previewWords: pickPreview(draft, report, spec) };
+  const editorNotes = report.problems.filter((p) => p.startsWith("editor:"));
+  report = validate(draft, spec, snap, lex);
+  report.problems.push(...editorNotes);
+  report.pass = report.problems.length === 0;
+  if (report.violations.length) log(`stretch words (tap to hear): ${report.violations.map((v) => v.word).join(", ")}`);
+  // Whatever is left (length, practice-word mix, editor notes) is a quality shortfall, not a reason
+  // to give him nothing. Ship the best draft and keep the notes. Only an empty draft fails.
+  if (!report.pass && draft.pages.some((p) => p.text.trim())) {
+    log(`accepting best draft with notes: ${report.problems.join("; ")}`);
+    report = { ...report, pass: true, warnings: report.problems, problems: [] };
   }
   if (!report.pass) throw new GenerationFailed(`book failed validation: ${report.problems.join("; ")}`, report, draft);
 
@@ -144,10 +131,20 @@ export async function generateBook(o: GenerateOptions): Promise<Book> {
   return book;
 }
 
-/** Which draft to keep: a story that makes sense matters more than word-rule misses (those become preview words). */
+/** Which draft to keep: a story that makes sense matters more than shape-rule misses. */
 function score(r: ValidationReport): number {
   const editor = r.problems.filter((p) => p.startsWith("editor:")).length;
   return badness(r) + editor * 15;
+}
+
+/** Names, plus up to maxStoryWords of the writer's listed key words that he can't already read. */
+function pickPreview(draft: DraftBook, report: ValidationReport, spec: LessonSpec): string[] {
+  const names = nameSet(spec, draft);
+  const hard = new Set([...report.violations.map((v) => v.word.replace(/'s$/, "")), ...report.storyWordsUsed]);
+  const listed = [...new Set(draft.previewWords.map((w) => w.toLowerCase()))];
+  const keep = listed.filter((w) => names.has(w));
+  const theme = listed.filter((w) => !names.has(w) && hard.has(w)).slice(0, spec.thresholds.maxStoryWords);
+  return [...keep, ...theme].map((w) => draft.previewWords.find((x) => x.toLowerCase() === w) ?? w);
 }
 
 function sanitize(d: DraftBook): DraftBook {
