@@ -124,25 +124,10 @@ export interface Book {
   validation: ValidationReport;
   rounds: number;
   model: string;
-  /** The story outline the book was written from (debugging / parent view). */
-  plan?: StoryPlan;
+  /** The free-written story the book was adapted from (debugging / comparing). */
+  story?: string;
 }
 
-/** Story outline written before any vocabulary constraints apply. */
-export interface StoryPlan {
-  hero: string;
-  want: string;
-  problem: string;
-  lesson: string;
-  tries: { attempt: string; result: string }[];
-  lowPoint: string;
-  turn: string;
-  resolution: string;
-  ending: string;
-  runningGag: string;
-  /** One beat per page, in order. */
-  beats: string[];
-}
 
 /** What the writer model returns. */
 export interface DraftBook {

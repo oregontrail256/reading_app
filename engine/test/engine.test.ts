@@ -7,6 +7,7 @@ import { MockWriter, type Writer } from "../src/llm.ts";
 import { buildSpec, chooseTargets } from "../src/spec.ts";
 import { sentences, tokenize } from "../src/tokenize.ts";
 import type { DraftBook } from "../src/types.ts";
+import { storyInput } from "../src/prompt.ts";
 import { classifyWord, isFancy, validate } from "../src/validate.ts";
 
 const lex = lexicon();
@@ -168,26 +169,21 @@ test("generate: the preview page keeps names plus the first maxStoryWords hard k
   assert.equal(book.pages[0].tokens.find((t) => t.w === "jungle")?.k, "unknown");
 });
 
-test("generate: editor review feeds the repair loop", async () => {
-  const reviews: string[] = [];
-  const book = await generateBook({
-    lex,
-    snapshot: snap,
-    request: { prompt: "a shark bakery" },
-    writer: (spec) => {
-      const m = new MockWriter(spec) as MockWriter & { review: Writer["review"] };
-      let n = 0;
-      m.review = async () => {
-        n++;
-        reviews.push(`r${n}`);
-        return n === 1 ? { ok: false, issues: ['"Max the make are." is not a sentence'] } : { ok: true, issues: [] };
-      };
-      return m;
+test("generate: only structural problems get a rewrite", async () => {
+  let calls = 0;
+  const pages = (n: number) => Array.from({ length: n }, () => ({ text: "Max ran. Max sat.", scene: "" }));
+  const writer: Writer = {
+    name: "short",
+    async write() {
+      calls++;
+      // First draft is missing pages (rewrite); the second has shape misses only (ship with warnings).
+      return { title: "Max", characters: [], previewWords: [], pages: pages(calls === 1 ? 3 : 10), coverScene: "", summary: "", chatQuestions: [], nextOptions: [] };
     },
-  });
-  assert.ok(book.validation.pass);
-  assert.deepEqual(reviews, ["r1", "r2"]);
-  assert.equal(book.rounds, 2);
+  };
+  const book = await generateBook({ lex, snapshot: snap, request: { prompt: "x" }, writer, maxRepairs: 3 });
+  assert.equal(calls, 2);
+  assert.equal(book.pages.length, 10);
+  assert.ok((book.validation.warnings ?? []).length > 0, "practice-word shortfall is kept as a warning");
 });
 
 test("server: auth and mock generation", async () => {
@@ -226,30 +222,34 @@ test("server: async job submit and poll", async () => {
   assert.equal((await app.request(`/v1/jobs/${id}`)).status, 401);
 });
 
-test("generate: story plan is written first and handed to the writer", async () => {
+test("generate: the story is written freely first, then handed to the adapt step", async () => {
   let seen = "";
   const book = await generateBook({
     lex,
     snapshot: snap,
     request: { prompt: "a shark who runs a bakery" },
     writer: (spec) => {
-      const m = new MockWriter(spec) as MockWriter & { plan: Writer["plan"] };
+      const m = new MockWriter(spec) as MockWriter & { story: Writer["story"] };
       const write = m.write.bind(m);
       m.write = async (msgs) => ((seen = msgs[1].content), write(msgs));
-      m.plan = async () => ({
-        hero: "Max, a small shark", want: "to bake the biggest cake", problem: "his cakes keep falling",
-        lesson: "Asking for help is not giving up.", tries: [{ attempt: "taller", result: "falls" }],
-        lowPoint: "flat cake", turn: "asks the crab", resolution: "they build it together", ending: "crab eats the top",
-        runningGag: "", beats: Array.from({ length: spec.pages }, (_, i) => `beat ${i + 1}`),
-      });
+      m.story = async () => "Max Bakes\n1. Max the shark had a bakery.";
       return m;
     },
   });
-  assert.ok(seen.includes("STORY PLAN") && seen.includes("Page 10: beat 10"), seen.slice(0, 300));
-  assert.equal(book.plan?.lesson, "Asking for help is not giving up.");
+  assert.ok(seen.includes("THE STORY:\nMax Bakes\n1. Max the shark had a bakery."), seen.slice(-300));
+  assert.ok(!seen.includes("PRACTICE words"), "practice words go to the author, not the adapt step");
+  assert.equal(book.story, "Max Bakes\n1. Max the shark had a bakery.");
 });
 
 test("fancy words: inflected everyday words are plain, rare ones are fancy", () => {
   for (const w of ["smiled", "laughed", "taller", "tapped", "rolled", "tied", "park", "slow"]) assert.ok(!isFancy(w, lex), w);
   for (const w of ["slumped", "scooted", "tumbled"]) assert.ok(isFancy(w, lex), w);
+});
+
+test("prompt: the author gets the practice words and heart word with the idea", () => {
+  const spec = buildSpec(lex, snap, { prompt: "a shark who runs a bakery" });
+  const input = storyInput(spec, { prompt: "a shark who runs a bakery" }, lex);
+  assert.ok(input.startsWith("STORY IDEA: a shark who runs a bakery"));
+  assert.ok(input.includes("PRACTICE words") && input.includes(spec.targetWords[0]), input);
+  if (spec.newHeartWords.length) assert.ok(input.includes(`NEW HEART WORD: ${spec.newHeartWords[0]}`));
 });

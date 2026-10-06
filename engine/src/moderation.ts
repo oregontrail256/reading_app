@@ -5,7 +5,10 @@ export interface ModerationResult {
   categories: string[];
 }
 
-/** OpenAI moderation on arbitrary text. Returns not-flagged when no key is configured (mock mode). */
+/** Categories we allow: cartoon fights, battles, and peril are fine in his books (graphic violence is not). */
+const ALLOWED = new Set(["violence"]);
+
+/** OpenAI moderation on arbitrary text. Flags only categories outside ALLOWED. Returns not-flagged when no key is configured (mock mode). */
 export async function moderate(text: string, apiKey = process.env.OPENAI_API_KEY): Promise<ModerationResult> {
   if (!apiKey || !text.trim()) return { flagged: false, categories: [] };
   const res = await fetchWithRetry(`${process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1"}/moderations`, {
@@ -19,5 +22,6 @@ export async function moderate(text: string, apiKey = process.env.OPENAI_API_KEY
   const categories = Object.entries(r.categories ?? {})
     .filter(([, v]) => v)
     .map(([k]) => k);
-  return { flagged: Boolean(r.flagged), categories };
+  const blocking = categories.filter((c) => !ALLOWED.has(c));
+  return { flagged: blocking.length > 0, categories: blocking };
 }

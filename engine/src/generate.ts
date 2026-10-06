@@ -3,10 +3,10 @@ import type { Illustrator } from "./images.ts";
 import { pool } from "./images.ts";
 import type { Lexicon } from "./lexicon.ts";
 import type { Message, Writer } from "./llm.ts";
-import { repairPrompt, systemPrompt, userPrompt } from "./prompt.ts";
+import { adaptInput, adaptPrompt, repairPrompt } from "./prompt.ts";
 import { buildSpec, type SpecOptions } from "./spec.ts";
 import { tokenize } from "./tokenize.ts";
-import type { Book, BookRequest, DraftBook, LearnerSnapshot, LessonSpec, StoryPlan, ValidationReport } from "./types.ts";
+import type { Book, BookRequest, DraftBook, LearnerSnapshot, LessonSpec, ValidationReport } from "./types.ts";
 import { annotate, badness, nameSet, storySet, validate } from "./validate.ts";
 
 export interface GenerateOptions extends SpecOptions {
@@ -15,9 +15,8 @@ export interface GenerateOptions extends SpecOptions {
   request: BookRequest;
   writer: Writer | ((spec: LessonSpec) => Writer);
   illustrator?: Illustrator;
+  /** Rewrites allowed for structural problems (wrong page count, empty pages). */
   maxRepairs?: number;
-  /** Skip the editorial (grammar/coherence) review pass. */
-  skipReview?: boolean;
   log?: (msg: string) => void;
 }
 
@@ -38,54 +37,44 @@ export async function generateBook(o: GenerateOptions): Promise<Book> {
   const writer = typeof o.writer === "function" ? o.writer(spec) : o.writer;
   log(`targets: ${spec.targets.join(", ") || "(none)"}; heart: ${spec.newHeartWords.join(", ") || "-"}; ${spec.allowedWords.length} known words`);
 
-  // Plan the story first, free of vocabulary rules, so the plot is decided by thinking about the story alone.
-  let plan: StoryPlan | undefined;
-  if (writer.plan) {
+  // 1. Write the story freely, like an author, with the practice words offered as ingredients, not rules.
+  let freeStory: string | undefined;
+  if (writer.story) {
     const t0 = Date.now();
-    plan = await writer.plan(spec, req).catch((e) => (log(`plan failed, writing without one: ${e.message}`), undefined));
-    if (plan && plan.beats.length !== spec.pages) log(`plan has ${plan.beats.length} beats for ${spec.pages} pages`);
-    if (plan) log(`plan: ${plan.lesson} (${((Date.now() - t0) / 1000).toFixed(1)}s)`);
+    freeStory = await writer.story(spec, req, lex);
+    log(`story written (${((Date.now() - t0) / 1000).toFixed(1)}s)`);
   }
 
+  // 2. Keep the story's words; fix only shape and mechanics, and add scenes, preview words, and questions.
   const messages: Message[] = [
-    { role: "system", content: systemPrompt(spec) },
-    { role: "user", content: userPrompt(spec, req, lex, plan) },
+    { role: "system", content: adaptPrompt(spec) },
+    { role: "user", content: adaptInput(spec, req, lex, freeStory) },
   ];
   let best: { draft: DraftBook; report: ValidationReport } | null = null;
-  const maxRepairs = o.maxRepairs ?? 3;
+  const maxRepairs = o.maxRepairs ?? 1;
   let rounds = 0;
   for (let round = 0; round <= maxRepairs; round++) {
     rounds = round + 1;
     const t0 = Date.now();
     const draft = sanitize(await writer.write(messages));
     const report = validate(draft, spec, snap, lex);
-    // Editorial review on every draft: story problems get fixed in the same rewrite as word problems,
-    // and the best-draft pick below can see them.
-    if (writer.review && !o.skipReview) {
-      const rv = await writer.review(draft, req.prompt).catch((e) => (log(`review failed: ${e.message}`), { ok: true, issues: [] }));
-      if (!rv.ok && rv.issues.length) {
-        report.pass = false;
-        report.problems.push(...rv.issues.map((i) => `editor: ${i}`));
-      }
-    }
     log(`round ${round + 1}: ${report.pass ? "PASS" : report.problems.join("; ")} (${((Date.now() - t0) / 1000).toFixed(1)}s)`);
-    // Ties go to the later draft: it already has the earlier editor notes worked in.
-    if (!best || score(report) <= score(best.report)) best = { draft, report };
-    if (report.pass) break;
+    // Ties go to the later draft.
+    if (!best || badness(report) <= badness(best.report)) best = { draft, report };
+    // Only structural problems are worth a rewrite: every rewrite risks flattening the story's voice.
+    const structural = structuralProblems(draft, spec);
+    if (!structural.length) break;
     messages.push({ role: "assistant", content: JSON.stringify(draft) });
-    messages.push({ role: "user", content: repairPrompt(draft, report, spec) });
+    messages.push({ role: "user", content: repairPrompt(draft, { ...report, problems: structural }) });
   }
 
   let { draft, report } = best!;
   // The "Words to know" page: the writer's key words he can't decode yet, at most maxStoryWords
   // besides names. Other hard words stay in the text as stretch words (tap to hear).
   draft = { ...draft, previewWords: pickPreview(draft, report, spec) };
-  const editorNotes = report.problems.filter((p) => p.startsWith("editor:"));
   report = validate(draft, spec, snap, lex);
-  report.problems.push(...editorNotes);
-  report.pass = report.problems.length === 0;
   if (report.violations.length) log(`stretch words (tap to hear): ${report.violations.map((v) => v.word).join(", ")}`);
-  // Whatever is left (length, practice-word mix, editor notes) is a quality shortfall, not a reason
+  // Whatever is left (length, practice-word mix, sentence shape) is a quality shortfall, not a reason
   // to give him nothing. Ship the best draft and keep the notes. Only an empty draft fails.
   if (!report.pass && draft.pages.some((p) => p.text.trim())) {
     log(`accepting best draft with notes: ${report.problems.join("; ")}`);
@@ -112,7 +101,7 @@ export async function generateBook(o: GenerateOptions): Promise<Book> {
     validation: report,
     rounds,
     model: writer.name,
-    plan,
+    story: freeStory,
   };
   delete (book.spec as any).allowedWords;
 
@@ -131,10 +120,13 @@ export async function generateBook(o: GenerateOptions): Promise<Book> {
   return book;
 }
 
-/** Which draft to keep: a story that makes sense matters more than shape-rule misses. */
-function score(r: ValidationReport): number {
-  const editor = r.problems.filter((p) => p.startsWith("editor:")).length;
-  return badness(r) + editor * 15;
+function structuralProblems(d: DraftBook, spec: LessonSpec): string[] {
+  const out: string[] = [];
+  if (d.pages.length !== spec.pages) out.push(`has ${d.pages.length} pages; need exactly ${spec.pages}`);
+  d.pages.forEach((p, i) => {
+    if (!p.text.trim()) out.push(`page ${i + 1} is empty`);
+  });
+  return out;
 }
 
 /** Names, plus up to maxStoryWords of the writer's listed key words that he can't already read. */

@@ -1,23 +1,18 @@
-import { DRAFT_SCHEMA, JUDGE_PROMPT, JUDGE_SCHEMA, judgeInput, PLAN_PROMPT, PLAN_SCHEMA, planInput } from "./prompt.ts";
-import type { BookRequest, DraftBook, LessonSpec, StoryPlan } from "./types.ts";
+import { DRAFT_SCHEMA, storyInput, storyPrompt } from "./prompt.ts";
+import type { Lexicon } from "./lexicon.ts";
+import type { BookRequest, DraftBook, LessonSpec } from "./types.ts";
 
 export interface Message {
   role: "system" | "user" | "assistant";
   content: string;
 }
 
-export interface Review {
-  ok: boolean;
-  issues: string[];
-}
-
 export interface Writer {
   readonly name: string;
+  /** Turns the conversation (adapt instructions + story, then any fix requests) into a book draft. */
   write(messages: Message[]): Promise<DraftBook>;
-  /** Optional editorial review (grammar, coherence). Absent = always ok. */
-  review?(draft: DraftBook, idea: string): Promise<Review>;
-  /** Optional story outline, written before the vocabulary-constrained draft. Absent = no plan. */
-  plan?(spec: LessonSpec, req: BookRequest): Promise<StoryPlan>;
+  /** Optional free-written story (title line, then "1. ..." per page). Absent = write() writes it too. */
+  story?(spec: LessonSpec, req: BookRequest, lex: Lexicon): Promise<string>;
 }
 
 export class OpenAIWriter implements Writer {
@@ -26,46 +21,34 @@ export class OpenAIWriter implements Writer {
     private apiKey = process.env.OPENAI_API_KEY ?? "",
     model = process.env.OPENAI_MODEL ?? "gpt-5",
     private baseURL = process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1",
+    /** The adapt step mostly copies the story and adds metadata. */
     private reasoningEffort = process.env.OPENAI_REASONING_EFFORT ?? "low",
-    /** Planning and editorial review are where story quality is decided, so they think harder. */
+    /** Writing the story is where quality is decided, so it thinks harder. */
     private storyEffort = process.env.OPENAI_STORY_EFFORT ?? "medium",
   ) {
     if (!apiKey) throw new Error("OPENAI_API_KEY is not set");
     this.name = model;
   }
 
+  async story(spec: LessonSpec, req: BookRequest, lex: Lexicon): Promise<string> {
+    return this.chat(
+      [
+        { role: "system", content: storyPrompt(spec) },
+        { role: "user", content: storyInput(spec, req, lex) },
+      ],
+      undefined,
+      this.storyEffort,
+    );
+  }
+
   async write(messages: Message[]): Promise<DraftBook> {
-    return this.chat<DraftBook>(messages, DRAFT_SCHEMA);
+    return JSON.parse(await this.chat(messages, DRAFT_SCHEMA)) as DraftBook;
   }
 
-  async plan(spec: LessonSpec, req: BookRequest): Promise<StoryPlan> {
-    return this.chat<StoryPlan>(
-      [
-        { role: "system", content: PLAN_PROMPT },
-        { role: "user", content: planInput(spec, req) },
-      ],
-      PLAN_SCHEMA,
-      this.storyEffort,
-    );
-  }
-
-  async review(draft: DraftBook, idea: string): Promise<Review> {
-    return this.chat<Review>(
-      [
-        { role: "system", content: JUDGE_PROMPT },
-        { role: "user", content: judgeInput(draft, idea) },
-      ],
-      JUDGE_SCHEMA,
-      this.storyEffort,
-    );
-  }
-
-  private async chat<T>(messages: Message[], schema: object, effort = this.reasoningEffort): Promise<T> {
-    const body: Record<string, unknown> = {
-      model: this.name,
-      messages,
-      response_format: { type: "json_schema", json_schema: schema },
-    };
+  /** Returns the message text; with a schema, that text is JSON. */
+  private async chat(messages: Message[], schema?: object, effort = this.reasoningEffort): Promise<string> {
+    const body: Record<string, unknown> = { model: this.name, messages };
+    if (schema) body.response_format = { type: "json_schema", json_schema: schema };
     if (effort && effort !== "none") body.reasoning_effort = effort;
     const res = await fetchWithRetry(`${this.baseURL}/chat/completions`, {
       method: "POST",
@@ -75,7 +58,7 @@ export class OpenAIWriter implements Writer {
     const json = (await res.json()) as any;
     const content = json.choices?.[0]?.message?.content;
     if (!content) throw new Error(`OpenAI returned no content: ${JSON.stringify(json).slice(0, 500)}`);
-    return JSON.parse(content) as T;
+    return content as string;
   }
 }
 
@@ -102,14 +85,14 @@ export async function fetchWithRetry(url: string, init: RequestInit, tries = 3):
 
 /**
  * Deterministic stand-in for tests and offline runs. Its prose is nonsense, but it exercises the pipeline:
- * the first draft deliberately includes words he can't read, and the repair pass swaps them out.
+ * the first draft includes a word he can't read ("enormous"), which should ship as a tap-to-hear word.
  */
 export class MockWriter implements Writer {
   readonly name = "mock";
   calls = 0;
   constructor(private spec: LessonSpec) {}
 
-  async write(messages: Message[]): Promise<DraftBook> {
+  async write(_messages: Message[]): Promise<DraftBook> {
     this.calls++;
     const spec = this.spec;
     const known = spec.allowedWords.filter((w) => w.length > 2).slice(0, 120);
@@ -126,11 +109,6 @@ export class MockWriter implements Writer {
       pages.push({ text: `${cap(sentence1)}. ${cap(sentence2)}. ${cap(sentence3)}.`, scene: `Max the shark, page ${i + 1}.` });
     }
     if (this.calls === 1) pages[0].text += " The enormous dinosaurs giggled.";
-    if (this.calls > 1) {
-      const last = messages[messages.length - 1].content;
-      const bad = [...last.matchAll(/- "([^"]+)" \(x\d+\)/g)].map((m) => m[1]);
-      for (const p of pages) for (const b of bad) p.text = p.text.replace(new RegExp(`\\b${b}\\b`, "gi"), "");
-    }
     return {
       title: "Max",
       characters: [{ name: "Max", description: "a small blue shark in a white baker's hat" }],
