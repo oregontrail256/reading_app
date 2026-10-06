@@ -309,18 +309,23 @@ struct PreviewStep: View {
     let book: Book
     let onDone: () -> Void
 
+    /// At most this many words (heart words included) so the "Let's read!" button stays on screen.
+    static let maxWords = 6
+    private var heartWords: [String] { Array(book.spec.newHeartWords.prefix(Self.maxWords)) }
+    private var previewWords: [String] { Array(book.previewWords.prefix(Self.maxWords - heartWords.count)) }
+
     var body: some View {
         VStack(spacing: 36) {
             Text("Words to know").font(Theme.reading(40, bold: true))
             Text("Tap each word to hear it.").font(Theme.reading(22)).foregroundStyle(.secondary)
             FlowLayout(spacing: 24, lineSpacing: 24) {
-                ForEach(book.previewWords, id: \.self) { w in
+                ForEach(previewWords, id: \.self) { w in
                     Button { Speech.shared.word(w) } label: {
                         Text(w).font(Theme.reading(56, bold: true)).padding(.horizontal, 30).padding(.vertical, 16)
                             .background(Color.blue.opacity(0.12), in: RoundedRectangle(cornerRadius: 22))
                     }.buttonStyle(.plain)
                 }
-                ForEach(book.spec.newHeartWords, id: \.self) { w in
+                ForEach(heartWords, id: \.self) { w in
                     Button { Speech.shared.word(w) } label: {
                         VStack(spacing: 6) {
                             Image(systemName: "heart.fill").foregroundStyle(.pink)

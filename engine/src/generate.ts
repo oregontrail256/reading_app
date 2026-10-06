@@ -69,8 +69,8 @@ export async function generateBook(o: GenerateOptions): Promise<Book> {
   }
 
   let { draft, report } = best!;
-  // The "Words to know" page: the writer's key words he can't decode yet, at most maxStoryWords
-  // besides names. Other hard words stay in the text as stretch words (tap to hear).
+  // The "Words to know" page: names, then the writer's key words he can't decode yet, at most
+  // maxStoryWords in all with the heart word. Other hard words stay in the text as stretch words (tap to hear).
   draft = { ...draft, previewWords: pickPreview(draft, report, spec) };
   report = validate(draft, spec, snap, lex);
   if (report.violations.length) log(`stretch words (tap to hear): ${report.violations.map((v) => v.word).join(", ")}`);
@@ -129,14 +129,15 @@ function structuralProblems(d: DraftBook, spec: LessonSpec): string[] {
   return out;
 }
 
-/** Names, plus up to maxStoryWords of the writer's listed key words that he can't already read. */
+/** Names, then the writer's listed key words he can't already read: maxStoryWords in all, minus the heart words. */
 function pickPreview(draft: DraftBook, report: ValidationReport, spec: LessonSpec): string[] {
   const names = nameSet(spec, draft);
   const hard = new Set([...report.violations.map((v) => v.word.replace(/'s$/, "")), ...report.storyWordsUsed]);
   const listed = [...new Set(draft.previewWords.map((w) => w.toLowerCase()))];
   const keep = listed.filter((w) => names.has(w));
-  const theme = listed.filter((w) => !names.has(w) && hard.has(w)).slice(0, spec.thresholds.maxStoryWords);
-  return [...keep, ...theme].map((w) => draft.previewWords.find((x) => x.toLowerCase() === w) ?? w);
+  const theme = listed.filter((w) => !names.has(w) && hard.has(w));
+  const room = Math.max(0, spec.thresholds.maxStoryWords - spec.newHeartWords.length);
+  return [...keep, ...theme].slice(0, room).map((w) => draft.previewWords.find((x) => x.toLowerCase() === w) ?? w);
 }
 
 function sanitize(d: DraftBook): DraftBook {

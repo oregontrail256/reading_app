@@ -151,7 +151,7 @@ test("validator: grammar-ish checks; no preview-word cap", () => {
   assert.ok(!r.problems.some((p) => p.includes("preview words")));
 });
 
-test("generate: the preview page keeps names plus the first maxStoryWords hard key words", async () => {
+test("generate: the preview page holds names, then hard key words, maxStoryWords in all with the heart word", async () => {
   const writer: Writer = {
     name: "listy",
     async write() {
@@ -164,8 +164,10 @@ test("generate: the preview page keeps names plus the first maxStoryWords hard k
       };
     },
   };
-  const book = await generateBook({ lex, snapshot: snap, request: { prompt: "x", pages: 1 }, writer, maxRepairs: 0, thresholds: { maxStoryWords: 3 } });
-  assert.deepEqual(book.previewWords, ["Zork", "bakery", "dinosaur", "octopus"]);
+  const book = await generateBook({ lex, snapshot: snap, request: { prompt: "x", pages: 1 }, writer, maxRepairs: 0, thresholds: { maxStoryWords: 4 } });
+  const expected = ["Zork", "bakery", "dinosaur", "octopus"].slice(0, 4 - book.spec.newHeartWords.length);
+  assert.deepEqual(book.previewWords, expected);
+  assert.ok(book.previewWords.length + book.spec.newHeartWords.length <= 4);
   assert.equal(book.pages[0].tokens.find((t) => t.w === "jungle")?.k, "unknown");
 });
 

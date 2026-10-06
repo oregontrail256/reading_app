@@ -6,7 +6,7 @@ export const DEFAULT_THRESHOLDS: Thresholds = {
   minSupportedPct: 0, // reported only; fancy words are steered instead (validate.ts)
   maxTargetPct: 0.15,
   minTargetTokens: 6,
-  maxStoryWords: 8,
+  maxStoryWords: 6,
   maxSentenceWords: 12,
   minSentencesPerPage: 2,
   maxSentencesPerPage: 4,

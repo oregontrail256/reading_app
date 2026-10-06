@@ -45,7 +45,7 @@ export interface Thresholds {
   maxTargetPct: number;
   /** Min occurrences (tokens) of each target pattern. */
   minTargetTokens: number;
-  /** Most words shown on the "Words to know" page, besides character names. */
+  /** Most words on the "Words to know" page, counting names and the new heart word (it must fit on one iPad screen). */
   maxStoryWords: number;
   maxSentenceWords: number;
   minSentencesPerPage: number;

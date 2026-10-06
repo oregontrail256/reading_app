@@ -35,7 +35,7 @@ Allowed text changes, and only these:
 Then fill in the rest:
 - "title": the story's title (shorten it if it is long).
 - "pages[].text": the story text for each page.
-- "previewWords": the character names, plus up to {maxStory} key words of this story that a mid-first grader probably can't sound out yet (ninja, toilet, rocket, balloon). An adult reads these to him before the story. Most important first.
+- "previewWords": at most {maxStory} words in all: the main character names, then the key words of this story that a mid-first grader probably can't sound out yet (ninja, toilet, rocket, balloon). An adult reads these to him before the story. Most important first.
 - "pages[].scene": one or two sentences describing the illustration for that page: setting, characters (with their consistent look), action, mood. The picture must not contain any written words.
 - "coverScene": the illustration for the cover.
 - "characters": the main characters with a one-line visual description each (species, colors, clothing) so pictures stay consistent. For MAIN CHARACTERS that were given, copy their given description exactly and only add clothing. Every human has black hair: say so in their description and in every scene that shows them.
