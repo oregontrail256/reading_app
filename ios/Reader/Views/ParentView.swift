@@ -54,6 +54,8 @@ struct ParentView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var health: Bool?
     @State private var showPlacement = false
+    @State private var voiceName = Speech.shared.voiceDescription
+    @State private var basicVoice = Speech.shared.usingBasicVoice
 
     var body: some View {
         @Bindable var model = model
@@ -89,6 +91,21 @@ struct ParentView: View {
                     Button("Redo placement check") { showPlacement = true }
                 }
                 Section {
+                    LabeledContent("Voice", value: voiceName)
+                    Button("Test voice") { Speech.shared.say("Lincoln and Loki ran to the park. Splash! Then they jumped in the mud.") }
+                    Button("Check for new voices") {
+                        Speech.shared.refreshVoice()
+                        voiceName = Speech.shared.voiceDescription
+                        basicVoice = Speech.shared.usingBasicVoice
+                    }
+                } header: { Text("Read-aloud voice") } footer: {
+                    if basicVoice {
+                        Text("This is the basic, robotic-sounding voice. For a natural one: Settings → Accessibility → Spoken Content → Voices → English, download a voice marked Premium or Enhanced (e.g. Ava or Zoe), then come back and tap Check for new voices.")
+                    } else {
+                        Text("The app uses the best US English voice installed on this iPad.")
+                    }
+                }
+                Section {
                     TextField("Server URL", text: $model.settings.proxyURL)
                         .textInputAutocapitalization(.never).autocorrectionDisabled().keyboardType(.URL)
                     SecureField("App token", text: $model.settings.appToken)
@@ -106,6 +123,11 @@ struct ParentView: View {
                 }
             }
             .navigationTitle("Grown-ups")
+            .onAppear {
+                Speech.shared.refreshVoice()  // picks up a voice downloaded in Settings since launch
+                voiceName = Speech.shared.voiceDescription
+                basicVoice = Speech.shared.usingBasicVoice
+            }
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
             .sheet(isPresented: $showPlacement) { PlacementView(onDone: { showPlacement = false }) }
         }
